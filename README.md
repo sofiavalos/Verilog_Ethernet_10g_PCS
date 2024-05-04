@@ -1,5 +1,9 @@
 <h1 align="center"> Ethernet 10GBASE PCS </h1>
 
+<p align="left">
+   <img src="https://img.shields.io/badge/STATUS-EN%20DESAROLLO-green">
+</p>
+
 ## Repositorio
 La base del repositorio son los módulos proporcionados por [Alex Forenchich](https://github.com/alexforencich/verilog-ethernet) en su propio repositorio.
 
