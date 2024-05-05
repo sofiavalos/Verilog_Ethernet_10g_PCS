@@ -23,7 +23,6 @@ reg [1:0] serdes_rx_hdr;     // Receiver header
 reg [63:0] serdes_rx_data;   // Receiver data
 wire [63:0] xgmii_rxd;       // XGMII output data
 wire [7:0] xgmii_rxc;        // XGMII output control signals
-wire serdes_rx_reset_req;
 
 //
 integer delay_count;    // Delay counter
@@ -85,7 +84,7 @@ initial begin
     xgmii_txc = 8'h00;
     
     // Place errors at 1000ns
-    #1000 
+    #2000 
     assign_normal_hdr = 0;
     serdes_rx_hdr <= 2'b00;
     #100
