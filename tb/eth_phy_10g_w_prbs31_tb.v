@@ -1,25 +1,35 @@
+`timescale 1ns / 1ps
+
+////////////////////////////////////////////////////////////////////////////////
+// Module: eth_phy_10g_w_prbs31_tb                                       
+// LCD - FCEFyN
+////////////////////////////////////////////////////////////////////////////////
+
 module eth_phy_10g_w_prbs31_tb;
 
-// Señales de Clock y Reset
+// Clock and Reset Signals
 reg rx_clk;
 reg rx_rst;
 reg tx_clk;
 reg tx_rst;
 
-// Señales para la comunicación entre los módulos
-reg [63:0] xgmii_txd;   // Datos de entrada XGMII
-reg [7:0] xgmii_txc;    // Señales de control XGMII
-wire tx_bad_block;     // Señal de estado para bloques defectuosos
-wire [1:0] serdes_tx_hdr; // Cabezal de salida del transmisor
-wire [63:0] serdes_tx_data; // Datos de salida del transmisor
-reg [1:0] serdes_rx_hdr; // Cabezal de salida del transmisor
-reg [63:0] serdes_rx_data; // Datos de salida del transmisor
-wire [63:0] xgmii_rxd;  // Datos de salida XGMII
-wire [7:0] xgmii_rxc;  // Señales de control de salida XGMII
-reg cfg_tx_prbs31_enable; // Booleano que activa el prbs31 para el transmisor
-reg cfg_rx_prbs31_enable; // Booleano que activa el prbs31 para el transmisor
+// Signals for Communication between Modules
+reg [63:0] xgmii_txd;    // XGMII Input Data
+reg [7:0] xgmii_txc;     // XGMII Control Signals
+wire tx_bad_block;       // Status Signal for Bad Blocks
+wire [1:0] serdes_tx_hdr;   // Transmitter Output Header
+wire [63:0] serdes_tx_data; // Transmitter Output Data
+reg [1:0] serdes_rx_hdr;   // Receiver Output Header
+reg [63:0] serdes_rx_data; // Receiver Output Data
+wire [63:0] xgmii_rxd;    // XGMII Output Data
+wire [7:0] xgmii_rxc;     // XGMII Output Control Signals
+reg cfg_tx_prbs31_enable;   // Boolean to Enable PRBS31 for Transmitter
+reg cfg_rx_prbs31_enable;   // Boolean to Enable PRBS31 for Receiver
 
-// Instancia del módulo PHY 10G Ethernet
+//
+reg assign_normal_hdr;    // Flag for Normal Header Assignment
+
+// Instance of the Ethernet PHY 10G Module
 eth_phy_10g #(
     .DATA_WIDTH(64),
     .CTRL_WIDTH(8),
@@ -51,53 +61,75 @@ eth_phy_10g #(
     .cfg_rx_prbs31_enable(cfg_rx_prbs31_enable)
 );
 
-// Generador de Clock cada 10 ut
+// Clock Generator every 10 units of time (ut)
 always 
     fork
         #5 rx_clk = ~rx_clk; 
         #5 tx_clk = ~tx_clk;
     join 
     
-// Actualiza las señales en los flancos positivos
+// Update Signals on Positive Clock Edges
 always @(posedge tx_clk) begin
 
     serdes_rx_data <= serdes_tx_data;
-    serdes_rx_hdr <= serdes_tx_hdr;
+    if(assign_normal_hdr) begin
+        serdes_rx_hdr <= serdes_tx_hdr;
+    end else begin
+        serdes_rx_hdr <= 2;
+    end
     
 end
 
-// Inicializa parametros
+// Initialize Parameters
 initial begin
-    // Inicialización de las señales
+
+    // Signal Initialization
     
-    // Configurar generación de PRBS31
+    // Configure PRBS31 Generation
     cfg_tx_prbs31_enable = 1'b0;
     cfg_rx_prbs31_enable = 1'b0;
         
-    // Configura inicialmente clock y reset        
+    // Initially Configure Clock and Reset        
     rx_rst = 1;
     rx_clk = 0;
     tx_rst = 1;
     tx_clk = 0;
+
+    // Deactivate Normal Header Assignment
+    assign_normal_hdr = 0;
     
-    // Coloca Reset en 0 después de 10 unidades de tiempo(ut)
-    fork
-        #10 rx_rst = 0;
-        #10 tx_rst = 0;
-    join
+    // Set Reset to 0 after 10 units of time (ut)
+    #10 
+    rx_rst = 0;
+    tx_rst = 0;
     
-    // Inicialización de los datos XGMII
-    xgmii_txd = 64'hxxxxxxxxxxxxxxxx; // Inicializa todos los bits después de 10s de reset
+    // Initialization of XGMII Data
+    xgmii_txd = 64'hxxxxxxxxxxxxxxxx; // Initialize all bits with no data
     
-    // Inicialización de las señales de control XGMII
-    xgmii_txc = 8'hxx; // Asigna a los bits xxh
+    // Initialization of XGMII Control Signals
+    xgmii_txc = 8'hxx; // Assign xx bits
     
-    // Habilita el PRBS31
-    fork   
+    // Enable PRBS31
+    fork 
+        #100  
+        begin
+            rx_rst = 1;
+            #10 rx_rst = 0;
+        end
         #100 cfg_tx_prbs31_enable = 1'b1;
         #100 cfg_rx_prbs31_enable = 1'b1;  
     join
+    
+    #1000
+    assign_normal_hdr = 1;
+end
 
+// Finish Simulation
+initial begin
+    // Wait for Simulation to Finish
+    #3000
+    // Terminate Simulation
+    $finish;
 end
 
 endmodule
