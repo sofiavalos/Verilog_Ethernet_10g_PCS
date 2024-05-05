@@ -85,25 +85,26 @@ generate
         assign serdes_rx_hdr_rev = serdes_rx_hdr;
     end
 
-    if (SERDES_PIPELINE > 0) begin						// si SERDES_PIPELINE > 0, implementa un pipeline en serue para serdes_rx_data y serdes_rx_hdr
+    if (SERDES_PIPELINE > 0) begin						// si SERDES_PIPELINE > 0, implementa un pipeline en serie para serdes_rx_data y serdes_rx_hdr
         (* srl_style = "register" *)
-        reg [DATA_WIDTH-1:0] serdes_rx_data_pipe_reg[SERDES_PIPELINE-1:0];
+        reg [DATA_WIDTH-1:0] serdes_rx_data_pipe_reg[SERDES_PIPELINE-1:0]; // crea tantos registros como profundidad tiene el pipeline
         (* srl_style = "register" *)
         reg [HDR_WIDTH-1:0]  serdes_rx_hdr_pipe_reg[SERDES_PIPELINE-1:0];
 
         for (n = 0; n < SERDES_PIPELINE; n = n + 1) begin
             initial begin
-                serdes_rx_data_pipe_reg[n] <= {DATA_WIDTH{1'b0}};
+                serdes_rx_data_pipe_reg[n] <= {DATA_WIDTH{1'b0}}; // iniciamente coloca el valor de los registros en 0
                 serdes_rx_hdr_pipe_reg[n] <= {HDR_WIDTH{1'b0}};
             end
 
             always @(posedge clk) begin
-                serdes_rx_data_pipe_reg[n] <= n == 0 ? serdes_rx_data_rev : serdes_rx_data_pipe_reg[n-1];
+                serdes_rx_data_pipe_reg[n] <= n == 0 ? serdes_rx_data_rev : serdes_rx_data_pipe_reg[n-1]; //si n es igual a 0, a la data del pipeline le asigna data_rev, en caso contrario deja la misma
+                // se asignan los datos por las diferentes etapas del pipeline
                 serdes_rx_hdr_pipe_reg[n] <= n == 0 ? serdes_rx_hdr_rev : serdes_rx_hdr_pipe_reg[n-1];
             end
         end
 
-        assign serdes_rx_data_int = serdes_rx_data_pipe_reg[SERDES_PIPELINE-1];
+        assign serdes_rx_data_int = serdes_rx_data_pipe_reg[SERDES_PIPELINE-1]; // la salida final es el utimo registro del pipeline del serdes
         assign serdes_rx_hdr_int = serdes_rx_hdr_pipe_reg[SERDES_PIPELINE-1];
     end else begin
         assign serdes_rx_data_int = serdes_rx_data_rev;
@@ -168,14 +169,14 @@ prbs31_check_inst (
 
 integer i;
 
-always @* begin		// calcula temporalmente el conteo de errores a partir de los datos del generador PRBS31
+always @* begin		// calcula el conteo de errores a partir de los datos del generador PRBS31
     rx_error_count_1_temp = 0;
     rx_error_count_2_temp = 0;
     for (i = 0; i < DATA_WIDTH+HDR_WIDTH; i = i + 1) begin
         if (i & 1) begin
-            rx_error_count_1_temp = rx_error_count_1_temp + prbs31_data_reg[i];
+            rx_error_count_1_temp = rx_error_count_1_temp + prbs31_data_reg[i]; // cuenta la cantidad de bits en alto cuando i es impar
         end else begin
-            rx_error_count_2_temp = rx_error_count_2_temp + prbs31_data_reg[i];
+            rx_error_count_2_temp = rx_error_count_2_temp + prbs31_data_reg[i]; // cuenta la cantidad de bits en alto cuando i es par
         end
     end
 end
@@ -183,18 +184,18 @@ end
 always @(posedge clk) begin	// en cada flanco positivo del clock se actualizan los registros y si PRBS31 está activado calcula el conteo de errores acumulativo
     scrambler_state_reg <= scrambler_state;
 
-    encoded_rx_data_reg <= SCRAMBLER_DISABLE ? serdes_rx_data_int : descrambled_rx_data;
+    encoded_rx_data_reg <= SCRAMBLER_DISABLE ? serdes_rx_data_int : descrambled_rx_data; // si no esta activado el scrambler, el registro tiene el valor de serdes, de lo contrario tiene el valos de los datos de descrambled
     encoded_rx_hdr_reg <= serdes_rx_hdr_int;
 
     if (PRBS31_ENABLE) begin
         if (cfg_rx_prbs31_enable) begin
-            prbs31_state_reg <= prbs31_state;
+            prbs31_state_reg <= prbs31_state; 
             prbs31_data_reg <= prbs31_data;
         end else begin
             prbs31_data_reg <= 0;
         end
 
-        rx_error_count_1_reg <= rx_error_count_1_temp;
+        rx_error_count_1_reg <= rx_error_count_1_temp; // coloca el error temp en el conteo de error
         rx_error_count_2_reg <= rx_error_count_2_temp;
         rx_error_count_reg <= rx_error_count_1_reg + rx_error_count_2_reg;
     end else begin
