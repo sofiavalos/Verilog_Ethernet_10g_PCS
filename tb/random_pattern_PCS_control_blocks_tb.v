@@ -25,7 +25,7 @@ module random_pattern_PCS_control_blocks_tb;
     parameter HDR_WIDTH = 2;
     parameter BIT_REVERSE = 0;
     parameter SCRAMBLER_DISABLE = 1;
-    parameter PRBS31_ENABLE = 1;
+    parameter PRBS31_ENABLE = 0;
     parameter TX_SERDES_PIPELINE = 0;
     parameter RX_SERDES_PIPELINE = 0;
     parameter BITSLIP_HIGH_CYCLES = 1;
@@ -61,12 +61,14 @@ module random_pattern_PCS_control_blocks_tb;
     wire rx_block_lock;
     wire serdes_rx_bitslip;
     wire rx_status;
+    reg pcs_status;
     
     // Error counters
     wire [6:0] rx_error_count;
     reg [3:0] ber_count;
     reg [6:0] errored_block_count;
     reg [6:0] test_pattern_error_count;
+    reg [6:0] transmission_error_count;
     
     // Enable PRBS31
     reg cfg_tx_prbs31_enable, cfg_rx_prbs31_enable;
@@ -80,6 +82,9 @@ module random_pattern_PCS_control_blocks_tb;
     
     // Counter
     integer i;
+    
+    // Random seed variables
+    integer seed1, seed2, seed3, seed4, seed5, seed6;
 
     // Instance of the module PHY 10G Ethernet under test
     eth_phy_10g #(
@@ -130,22 +135,33 @@ module random_pattern_PCS_control_blocks_tb;
             tx_rst = 1;
             tx_clk = 0;
             
+           // Seed the random number generator
+            seed1 = 32'h1;
+            seed2 = 32'h2;
+            seed3 = 32'h3;
+            seed4 = 32'h4;
+            seed5 = 32'h5;
+            seed6 = 32'h6;
+           
             // Assign patterns to the array
-            test_patterns[0] = 64'hFFFFFFFFFFFFFFFF; 
-            test_patterns[1] = 64'h0000000000000000; 
-            test_patterns[2] = 64'h5555555555555555; 
-            test_patterns[3] = 64'hAAAAAAAAAAAAAAAA; 
-            test_patterns[4] = 64'hFEFEFEFEFEFEFEFE; 
-            test_patterns[5] = 64'h0707070707070707; 
+            test_patterns[0] = {{$random(seed1), $random}};
+            test_patterns[1] = {{$random(seed2), $random}};
+            test_patterns[2] = {{$random(seed3), $random}};
+            test_patterns[3] = {{$random(seed4), $random}};
+            test_patterns[4] = {{$random(seed5), $random}};
+            test_patterns[5] = {{$random(seed6), $random}};
+            
+            // Initialize the error flags to 0
+            pcs_status = 1'b0;
             
             // Initialize error counters to zero
             test_pattern_error_count = 0;
             errored_block_count = 0;
+            transmission_error_count = 0;
             
-            xgmii_txd = 64'hxxxxxxxxxxxxxxxx;
-            // Enable PRBS31
-            cfg_tx_prbs31_enable = 1;
-            cfg_rx_prbs31_enable = 1;
+            // Disable PRBS31
+            cfg_tx_prbs31_enable = 0;
+            cfg_rx_prbs31_enable = 0;
 
             // Set Reset to 0
             #10 
@@ -153,13 +169,14 @@ module random_pattern_PCS_control_blocks_tb;
             tx_rst = 0;
             
             // Initialize monitors
-            $display("");
-            $display("---------Starting simulation---------");
+            $display("\n ---------Starting simulation---------");
             $monitor("Time: %0t | block lock: %0d", $time, rx_block_lock);
             $monitor("Time: %0t | high_ber: %0d", $time, rx_high_ber);
             $monitor("Time: %0t | bitslip: %0d", $time, serdes_rx_bitslip);
+            $monitor("Time: %0t | PCS status: %0d", $time, pcs_status);
             $monitor("Time: %0t | ber count: %0d", $time, ber_count);
             $monitor("Time: %0t | errored block count: %0d", $time, errored_block_count);
+            $monitor("Time: %0t | test pattern error count: %0d", $time, test_pattern_error_count);
             // Initialize SERDES_rx_control signals
             xgmii_txc = 8'h00;
            
@@ -169,11 +186,10 @@ module random_pattern_PCS_control_blocks_tb;
             // Reset Rx to clear any setup errors
             #10 
             rx_rst = 0;
-            $display("");
-            $display("---------Receiver reset---------");
+            $display("\n ---------Receiver reset---------");
             #40
-            test_pattern_error_count = 0;
-            $monitor("Time: %0t | test pattern error count: %0d", $time, test_pattern_error_count);
+            transmission_error_count = 0;
+            $monitor("Time: %0t | transmission error count: %0d", $time, transmission_error_count);
             
             // End the simulation
            #2800
@@ -187,9 +203,13 @@ module random_pattern_PCS_control_blocks_tb;
          end        
         
         
-        always @(posedge tx_clk) begin   
-            serdes_rx_data <= serdes_tx_data;
-            serdes_rx_hdr <= 2'h2;
+        always @(posedge tx_clk) begin
+            for (i = 0; i < 6; i = i + 1) begin
+                xgmii_txd <= test_patterns[i];    
+            #20
+                serdes_rx_data <= serdes_tx_data;
+                serdes_rx_hdr <= 2'h2;
+            end
         end
         
         
@@ -205,16 +225,30 @@ module random_pattern_PCS_control_blocks_tb;
             delayed_serdes_tx_data <= delay_reg[5];
             
             if(delayed_serdes_tx_data != serdes_rx_data) begin
-                test_pattern_error_count = test_pattern_error_count + 1;
+                transmission_error_count = transmission_error_count + 1;
             end
             
             if(rx_error_count != 0) begin
                 errored_block_count <= rx_error_count;
+                test_pattern_error_count <= rx_error_count;
+            end   
+                
+            if(rx_block_lock && !rx_high_ber) begin
+                pcs_status = 1'b1;
+            end else begin
+                pcs_status = 1'b0;
             end
             
             // Check for errors
             if ($time > 200) begin
-                if(rx_high_ber || serdes_rx_bitslip || (ber_count > 0) || (errored_block_count > 0) || (test_pattern_error_count > 0)) begin
+                if(rx_high_ber || serdes_rx_bitslip || (ber_count > 0) || (errored_block_count > 0) || (test_pattern_error_count > 0) || (transmission_error_count)) begin
+                   // End the simulation if there are any errors
+                    ->terminate_sim;
+                end
+            end
+            
+            if ($time > 1440) begin
+                if(!pcs_status || !rx_block_lock) begin
                    // End the simulation if there are any errors
                     ->terminate_sim;
                 end
@@ -222,26 +256,29 @@ module random_pattern_PCS_control_blocks_tb;
         end
         
         always @(terminate_sim) begin
-            $display("");
-            $display("---------Final state---------");
+            $display("\n ---------Final state---------");
             $display("block lock: %0d", rx_block_lock);
             $display("high_ber: %0d", rx_high_ber);
             $display("bitslip: %0d", serdes_rx_bitslip);
+            $display("PCS status: %0d", pcs_status);
             $display("ber count: %0d", ber_count);
             $display("errored block count: %0d", errored_block_count);
             $display("test pattern error count: %0d", test_pattern_error_count);
-            if(rx_block_lock && !rx_high_ber && serdes_rx_bitslip && (ber_count == 0) && (errored_block_count == 0) && (test_pattern_error_count == 0) && (serdes_rx_data != 64'hFEFEFEFEFEFEFEFE)) begin
+            if(pcs_status && rx_block_lock && !rx_high_ber && !serdes_rx_bitslip && (ber_count == 0) && (errored_block_count == 0) && (test_pattern_error_count == 0) && (transmission_error_count == 0)) begin
                 $display("The test passed successfully");
             end else begin
                 $display("Test did not pass");
-                if(rx_block_lock) begin
+                if(!rx_block_lock) begin
                     $display("Block lock is unset");
                 end
                 if(rx_high_ber) begin
                     $display("High ber is set");
                 end
-                if(!serdes_rx_bitslip) begin
+                if(serdes_rx_bitslip) begin
                     $display("Bitslip is set");
+                end
+                if(!pcs_status) begin
+                    $display("PCS status is unset");
                 end
                 if(ber_count > 0) begin
                     $display("Ber count is %0d", ber_count);
@@ -252,9 +289,11 @@ module random_pattern_PCS_control_blocks_tb;
                 if(test_pattern_error_count > 0) begin
                     $display("Test pattern error count is %0d", test_pattern_error_count);
                 end 
-                if(serdes_rx_data == 64'hFEFEFEFEFEFEFEFE) begin
-                    $display("Serdes rx data signal is error pattern");
-                end     
+                if(transmission_error_count > 0) begin
+                    $display("The transmitted and received data do not match");
+                    $display("Serdes_tx_data: %0d", delayed_serdes_tx_data);
+                    $display("Serdes_rx_data: %0d", serdes_rx_data);
+                end
             end
             #5 $finish;
         end  

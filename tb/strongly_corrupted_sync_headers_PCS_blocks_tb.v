@@ -61,12 +61,14 @@ module strongly_corrupted_sync_headers_PCS_blocks_tb;
     wire rx_block_lock;
     wire serdes_rx_bitslip;
     wire rx_status;
+    reg pcs_status;
     
     // Error counters
     wire [6:0] rx_error_count;
     reg [3:0] ber_count;
     reg [6:0] errored_block_count;
     reg [6:0] test_pattern_error_count;
+    reg [6:0] transmission_error_count;
     
     // Enable PRBS31
     reg cfg_tx_prbs31_enable, cfg_rx_prbs31_enable;
@@ -138,27 +140,32 @@ module strongly_corrupted_sync_headers_PCS_blocks_tb;
             test_patterns[4] = 64'hFEFEFEFEFEFEFEFE; 
             test_patterns[5] = 64'h0707070707070707; 
             
+            // Initialize the error flags to 0
+            pcs_status = 1'b0;
+            
             // Initialize error counters to zero
             test_pattern_error_count = 0;
             errored_block_count = 0;
+            transmission_error_count = 0;
             
             // Disable PRBS31
             cfg_tx_prbs31_enable = 0;
             cfg_rx_prbs31_enable = 0;
-            
-            // Initialize monitors
 
             // Set Reset to 0
             #10 
             rx_rst = 0;
             tx_rst = 0;
-            $display("");
-            $display("---------Starting simulation---------");
+            
+            // Initialize monitors
+            $display("\n ---------Starting simulation---------");
             $monitor("Time: %0t | block lock: %0d", $time, rx_block_lock);
             $monitor("Time: %0t | high_ber: %0d", $time, rx_high_ber);
             $monitor("Time: %0t | bitslip: %0d", $time, serdes_rx_bitslip);
+            $monitor("Time: %0t | PCS status: %0d", $time, pcs_status);
             $monitor("Time: %0t | ber count: %0d", $time, ber_count);
             $monitor("Time: %0t | errored block count: %0d", $time, errored_block_count);
+            $monitor("Time: %0t | test pattern error count: %0d", $time, test_pattern_error_count);
             // Initialize SERDES_rx_control signals
             xgmii_txc = 8'h00;
            
@@ -168,11 +175,10 @@ module strongly_corrupted_sync_headers_PCS_blocks_tb;
             // Reset Rx to clear any setup errors
             #10 
             rx_rst = 0;
-            $display("");
-            $display("---------Receiver reset---------");
+            $display("\n ---------Receiver reset---------");
             #40
-            test_pattern_error_count = 0;
-            $monitor("Time: %0t | test pattern error count: %0d", $time, test_pattern_error_count);
+            transmission_error_count = 0;
+            $monitor("Time: %0t | transmission error count: %0d", $time, transmission_error_count);
             
             // End the simulation
            #2800
@@ -194,6 +200,20 @@ module strongly_corrupted_sync_headers_PCS_blocks_tb;
             end
         end
         
+        initial begin
+            serdes_rx_hdr <= 2'h2;
+            #1200;
+            serdes_rx_hdr <= 2'h0;
+            #1000;
+            serdes_rx_hdr <= 2'h1;
+            #100;
+            serdes_rx_hdr <= 2'h3;
+            #600;
+            serdes_rx_hdr <= 2'h2;
+            #100;
+            serdes_rx_hdr <= 2'h3;
+        end
+        
         
         always @(posedge rx_clk) begin
             ber_count <= dut.eth_phy_10g_rx_inst.eth_phy_10g_rx_if_inst.eth_phy_10g_rx_ber_mon_inst.ber_count_reg;
@@ -207,57 +227,62 @@ module strongly_corrupted_sync_headers_PCS_blocks_tb;
             delayed_serdes_tx_data <= delay_reg[5];
             
             if(delayed_serdes_tx_data != serdes_rx_data) begin
-                test_pattern_error_count = test_pattern_error_count + 1;
+                transmission_error_count = transmission_error_count + 1;
             end
             
             if(rx_error_count != 0) begin
                 errored_block_count <= rx_error_count;
+                test_pattern_error_count <= rx_error_count;
+            end   
+                
+            if(rx_block_lock && !rx_high_ber) begin
+                pcs_status = 1'b1;
+            end else begin
+                pcs_status = 1'b0;
             end
             
             // Check for errors
             if ($time > 200) begin
-                if(rx_block_lock || rx_high_ber || (ber_count > 0) || (errored_block_count > 0) || (test_pattern_error_count > 0)) begin
+                if((errored_block_count > 0) || (test_pattern_error_count > 0)) begin
+                   // End the simulation if there are any errors
+                    ->terminate_sim;
+                end
+            end
+            
+            if ($time > 1440) begin
+                if(pcs_status || rx_block_lock) begin
                    // End the simulation if there are any errors
                     ->terminate_sim;
                 end
             end
         end
         
-        always begin
-            serdes_rx_hdr <= 2'h2;
-            #10;
-            serdes_rx_hdr <= 2'h3;
-            #100;
-            serdes_rx_hdr <= 2'h1;
-            #10;
-            serdes_rx_hdr <= 2'h0;
-            #100;
-        end
-        
-        
         always @(terminate_sim) begin
-            $display("");
-            $display("---------Final state---------");
+            $display("\n ---------Final state---------");
             $display("block lock: %0d", rx_block_lock);
             $display("high_ber: %0d", rx_high_ber);
             $display("bitslip: %0d", serdes_rx_bitslip);
+            $display("PCS status: %0d", pcs_status);
             $display("ber count: %0d", ber_count);
             $display("errored block count: %0d", errored_block_count);
             $display("test pattern error count: %0d", test_pattern_error_count);
-            if(!rx_block_lock && !rx_high_ber && serdes_rx_bitslip && (ber_count == 0) && (errored_block_count == 0) && (test_pattern_error_count == 0)) begin
+            if(!pcs_status && !rx_block_lock && rx_high_ber && (errored_block_count == 0) && (test_pattern_error_count == 0)) begin
                 $display("The test passed successfully");
             end else begin
                 $display("Test did not pass");
                 if(rx_block_lock) begin
                     $display("Block lock is set");
                 end
-                if(rx_high_ber) begin
-                    $display("High ber is set");
+                if(!rx_high_ber) begin
+                    $display("High ber is unset");
                 end
                 if(!serdes_rx_bitslip) begin
                     $display("Bitslip is unset");
                 end
-                if(ber_count > 0) begin
+                if(pcs_status) begin
+                    $display("PCS status is set");
+                end
+                if(ber_count == 0) begin
                     $display("Ber count is %0d", ber_count);
                 end
                 if(errored_block_count > 0) begin
@@ -271,4 +296,3 @@ module strongly_corrupted_sync_headers_PCS_blocks_tb;
         end  
        
 endmodule
-
