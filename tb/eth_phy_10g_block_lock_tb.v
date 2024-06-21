@@ -132,14 +132,6 @@ module eth_phy_10g_block_lock_tb;
             tx_rst = 1;
             tx_clk = 0;
             
-            // Assign patterns to the array
-            test_patterns[0] = 64'hFFFFFFFFFFFFFFFF; 
-            test_patterns[1] = 64'h0000000000000000; 
-            test_patterns[2] = 64'h5555555555555555; 
-            test_patterns[3] = 64'hAAAAAAAAAAAAAAAA; 
-            test_patterns[4] = 64'hFEFEFEFEFEFEFEFE; 
-            test_patterns[5] = 64'h0707070707070707; 
-            
             // Initialize the error flags to 0
             pcs_status = 1'b0;
             
@@ -161,73 +153,11 @@ module eth_phy_10g_block_lock_tb;
             $monitor("Time: %0t | ber count: %0d", $time, ber_count);
             // Inicializa la data del tx
             xgmii_txc = 8'hxx;
-            xgmii_txd = 64'hxxxxxxxxxxxxxxxx;
-           
-            // Configura encabezado inicial
-            #20
-            serdes_rx_hdr <= 2'h2;
-            
-            // Envia 3 encabezados invalidos
-            #1470
-            serdes_rx_hdr <= 2'h3;
-            #60
-            // Envia 13 encabezados validos
-            serdes_rx_hdr <= 2'h2;
-            #260
-            // Envia 3 encabezados invalidos          
-            serdes_rx_hdr <= 2'h3;
-            #60
-            // Envia 13 encabezados validos
-            serdes_rx_hdr <= 2'h2;
-            #260
-            // Envia 3 encabezados invalidos
-            serdes_rx_hdr <= 2'h3;
-            #60
-            // Envia 13 encabezados validos
-            serdes_rx_hdr <= 2'h2;
-            #260
-            // Envia 3 encabezados invalidos
-            serdes_rx_hdr <= 2'h3;
-            #60
-            // Envia 13 encabezados validos
-            serdes_rx_hdr <= 2'h2;
-            #260
-            // Envia 15 encabezados invalidos
-            serdes_rx_hdr <= 2'h3;
-            #300
-            // Envia 49 encabezados validos
-            serdes_rx_hdr <= 2'h2;
-            #980
-            // Envia 16 encabezados invalidos
-            serdes_rx_hdr <= 2'h3;
-            #320
-            // Envia 1 encabezado valido
-            serdes_rx_hdr <= 2'h2;
-            #20
-            // Envia 1 encabezado invalido
-            serdes_rx_hdr <= 2'h3;
-            #20
-            // Envia 1 encabezado validos
-            serdes_rx_hdr <= 2'h2;
-            #20
-            // Envia 1 encabezado invalido
-            serdes_rx_hdr <= 2'h3;
-            #20
-            // Envia encabezados validos
-            serdes_rx_hdr <= 2'h2;
-            
-           
+            xgmii_txd = 64'hxxxxxxxxxxxxxxxx; 
         end 
         
         
-        always @(posedge tx_clk) begin
-            for (i = 0; i < 6; i = i + 1) begin
-                serdes_rx_data <= test_patterns[i];    
-            end
-        end
-        
-        
-        always @(posedge rx_clk) begin
+        always @* begin
             ber_count <= dut.eth_phy_10g_rx_inst.eth_phy_10g_rx_if_inst.eth_phy_10g_rx_ber_mon_inst.ber_count_reg;
             sh_cnt <= dut.eth_phy_10g_rx_inst.eth_phy_10g_rx_if_inst.eth_phy_10g_rx_frame_sync_inst.sh_count_reg;
             sh_invalid_cnt <= dut.eth_phy_10g_rx_inst.eth_phy_10g_rx_if_inst.eth_phy_10g_rx_frame_sync_inst.sh_invalid_count_reg;
@@ -248,6 +178,95 @@ module eth_phy_10g_block_lock_tb;
             
             #5 $finish;
         end  
+        
+        
+        `define CASE_3_INVALID
+        
+        // Envia 63 validos, 1 invalido
+        `ifdef CASE_1_VALID
+            initial begin
+                // Envia 63 bloques validos
+                serdes_rx_hdr <= 2'h2;
+               #1250;
+               // Envia1 bloque invalido
+               serdes_rx_hdr <= 2'h0;
+               #20;
+               // Envia bloques validos
+                serdes_rx_hdr <= 2'h2;
+            end
+         // Envia 62 validos, 1 invalido, 1 valido
+        `elsif CASE_2_VALID
+            initial begin
+                // Envia 62 bloques validos
+                serdes_rx_hdr <= 2'h2;
+               #1230;
+               // Envia 1 bloque invalido
+               serdes_rx_hdr <= 2'h0;
+               #20;
+               // Envia bloques validos
+                serdes_rx_hdr <= 2'h2;
+            end
+        // Envia 64 validos, 1 invalido, resto validos
+        `elsif CASE_3_VALID
+            initial begin
+                // Envia 64 bloques validos
+                serdes_rx_hdr <= 2'h2;
+               #1270;
+               // Envia 1 bloque invalido
+               serdes_rx_hdr <= 2'h0;
+               #20;
+               // Envia bloques validos
+                serdes_rx_hdr <= 2'h2;
+            end
+        // Envia 64 validos, 15 invalido, resto validos
+        `elsif CASE_1_INVALID
+            initial begin
+                // Envia 64 bloques validos
+                serdes_rx_hdr <= 2'h2;
+               #1270;
+               // Envia 15 bloques invalidos
+               serdes_rx_hdr <= 2'h0;
+               #300;
+               // Envia bloques validos
+               serdes_rx_hdr <= 2'h2;
+            end
+        // Envia 64 validos, 15 invalido, 48 validos, 1 invalido
+        `elsif CASE_2_INVALID
+            initial begin
+                // Envia 64 bloques validos
+                serdes_rx_hdr <= 2'h2;
+               #1270;
+               // Envia 15 bloques invalidos
+               serdes_rx_hdr <= 2'h0;
+               #300;
+               // Envia 48 bloques validos
+               serdes_rx_hdr <= 2'h2;
+               #960;
+               // Envia 1 bloques invalido
+               serdes_rx_hdr <= 2'h0;
+               #20;
+               // Envia bloques validos
+               serdes_rx_hdr <= 2'h2;
+            end
+        `elsif CASE_3_INVALID
+            initial begin
+                // Envia 64 bloques validos
+                serdes_rx_hdr <= 2'h2;
+               #1270;
+               // Envia 16 bloques invalidos
+               serdes_rx_hdr <= 2'h0;
+               #320;
+               // Envia 8 bloques validos
+               serdes_rx_hdr <= 2'h2;
+               #180;
+               // Envia 1 bloques invalido
+               serdes_rx_hdr <= 2'h0;
+               #20;
+               // Envia bloques validos
+               serdes_rx_hdr <= 2'h2;
+            end
+        `endif
+            
        
 endmodule
 
