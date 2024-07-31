@@ -69,11 +69,7 @@ module eth_phy_10g_block_lock_prob_tb;
     reg                     cfg_tx_prbs31_enable;
     reg                     cfg_rx_prbs31_enable;
     
-    // Create an array with bit patterns
-    reg  [63 : 0          ] test_patterns [0:5];
-    
     // Counter
-    integer i;
     integer j;
     integer k;
     
@@ -132,8 +128,8 @@ module eth_phy_10g_block_lock_prob_tb;
     
     event terminate_sim;
     
-    always #10 rx_clk = ~rx_clk;
-    always #10 tx_clk = ~tx_clk; 
+    always #5 rx_clk = ~rx_clk;
+    always #5 tx_clk = ~tx_clk; 
     
     initial begin: TEST_CASE
         // Initialize clock and reset signals
@@ -153,18 +149,18 @@ module eth_phy_10g_block_lock_prob_tb;
         test_ok_cnt          = 1'b0 ;
 
         // Set Reset to 0
-        #100;
-        @(negedge rx_clk);
+        #200;
+        @(posedge rx_clk);
         rx_rst               = 1'b0 ;
         tx_rst               = 1'b0 ;
         
         // Loop through 100 test cases
         for (k = 0; k < 100; k = k + 1) begin
             // Reset
-            @(negedge rx_clk);
-            rx_rst = 1'b1 ;
-            #100;
-            @(negedge rx_clk);
+            @(posedge rx_clk);
+            rx_rst              = 1'b1 ;
+            #200;
+            @(posedge rx_clk);
             rx_rst               = 1'b0 ;
             // Set different values for min and max for each test case
             min = k*100;         
@@ -212,7 +208,8 @@ module eth_phy_10g_block_lock_prob_tb;
                         end else
                             sh_valid_cnt  = sh_valid_cnt + 'd1;
                         sh_cnt            = sh_cnt       + 'd1;
-                        #20;
+                        #10;
+                        @(posedge rx_clk);
                     end
                     serdes_rx_hdr = sync_hdr;
                 end
