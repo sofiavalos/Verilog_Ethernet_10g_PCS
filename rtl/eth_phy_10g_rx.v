@@ -7,54 +7,56 @@
 /*
  * 10G Ethernet PHY RX
  */
+
+ //! Modulo del receptor de 10g
 module eth_phy_10g_rx #
 (
-    parameter DATA_WIDTH = 64,
-    parameter CTRL_WIDTH = (DATA_WIDTH/8),
-    parameter HDR_WIDTH = 2,
-    parameter BIT_REVERSE = 0,
-    parameter SCRAMBLER_DISABLE = 0,
-    parameter PRBS31_ENABLE = 0,
-    parameter SERDES_PIPELINE = 0,
-    parameter BITSLIP_HIGH_CYCLES = 1,
-    parameter BITSLIP_LOW_CYCLES = 8,
-    parameter COUNT_125US = 125000/6.4
+    parameter DATA_WIDTH = 64,                                      //! Ancho del bus de datos
+    parameter CTRL_WIDTH = (DATA_WIDTH/8),                          //! Ancho del bus de control
+    parameter HDR_WIDTH = 2,			                            //! Ancho de bus de header
+    parameter BIT_REVERSE = 0,			                            //! Flag para habilitar reversión de bits
+    parameter SCRAMBLER_DISABLE = 0,		                        //! Flag para habilitar scrambler
+    parameter PRBS31_ENABLE = 0,		                            //! Flag para habilitar PRBS31
+    parameter SERDES_PIPELINE = 0,		                            //! Flag para habilitar profundidad del pipeline
+    parameter BITSLIP_HIGH_CYCLES = 1,		                        //! Ciclos de bitslip alto
+    parameter BITSLIP_LOW_CYCLES = 8,		                        //! Ciclos de bitslip bajo
+    parameter COUNT_125US = 125000/10	                            //! Contador de 125 us
 )
 (
-    input  wire                  clk,
-    input  wire                  rst,
+    input  wire                  clk,                               //! Señal de datos
+    input  wire                  rst,                               //! Señal de control
 
     /*
      * XGMII interface
      */
-    output wire [DATA_WIDTH-1:0] xgmii_rxd,
-    output wire [CTRL_WIDTH-1:0] xgmii_rxc,
+    output wire [DATA_WIDTH-1:0] xgmii_rxd,                         //! Salida de datos de la interfaz xgmii
+    output wire [CTRL_WIDTH-1:0] xgmii_rxc,                         //! Salida de control de la interfaz xgmii
 
     /*
      * SERDES interface
      */
-    input  wire [DATA_WIDTH-1:0] serdes_rx_data,
-    input  wire [HDR_WIDTH-1:0]  serdes_rx_hdr,
-    output wire                  serdes_rx_bitslip,
-    output wire                  serdes_rx_reset_req,
+    input  wire [DATA_WIDTH-1:0] serdes_rx_data,                    //! Datos de la interfaz serdes del receptor
+    input  wire [HDR_WIDTH-1:0]  serdes_rx_hdr,                     //! Sync eader de la interfaz SERDES del receptor
+    output wire                  serdes_rx_bitslip,                 //! Flag de bitslip del SERDES
+    output wire                  serdes_rx_reset_req,               //! Flag de solicitud de reset del SERDES
 
     /*
      * Status
      */
-    output wire [6:0]            rx_error_count,
-    output wire                  rx_bad_block,
-    output wire                  rx_sequence_error,
-    output wire                  rx_block_lock,
-    output wire                  rx_high_ber,
-    output wire                  rx_status,
+    output wire [6:0]            rx_error_count,                    //! Contador de errores
+    output wire                  rx_bad_block,                      //! Flag de bloque con error
+    output wire                  rx_sequence_error,                 //! Flag de error de secuencia
+    output wire                  rx_block_lock,                     //! Flag de bloque alineado
+    output wire                  rx_high_ber,                       //! Flag de bit rate error alto
+    output wire                  rx_status,                         //! Flag del estado del receptor
 
     /*
      * Configuration
      */
-    input  wire                  cfg_rx_prbs31_enable
+    input  wire                  cfg_rx_prbs31_enable               //! Entrada para habilitar la PRBS31
 );
 
-// bus width assertions
+
 initial begin
     if (DATA_WIDTH != 64) begin
         $error("Error: Interface width must be 64");
@@ -72,9 +74,10 @@ initial begin
     end
 end
 
-wire [DATA_WIDTH-1:0] encoded_rx_data;
-wire [HDR_WIDTH-1:0]  encoded_rx_hdr;
+wire [DATA_WIDTH-1:0] encoded_rx_data;                          //! Datos codificados del rx
+wire [HDR_WIDTH-1:0]  encoded_rx_hdr;                           //! Sync header codificado del rx
 
+//! Instancia modulo if del receptor que utiliza interfaz SERDES
 eth_phy_10g_rx_if #(
     .DATA_WIDTH(DATA_WIDTH),
     .HDR_WIDTH(HDR_WIDTH),
@@ -104,6 +107,7 @@ eth_phy_10g_rx_if_inst (
     .cfg_rx_prbs31_enable(cfg_rx_prbs31_enable)
 );
 
+//! Instancia modulo que convierte interfaz XGMII a SERDES
 xgmii_baser_dec_64 #(
     .DATA_WIDTH(DATA_WIDTH),
     .CTRL_WIDTH(CTRL_WIDTH),

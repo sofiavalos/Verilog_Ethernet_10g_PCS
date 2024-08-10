@@ -33,33 +33,34 @@ THE SOFTWARE.
  */
 module eth_phy_10g_tx_if #
 (
-    parameter DATA_WIDTH = 64, 		// ancho de los datos en bits.
-    parameter HDR_WIDTH = 2,		// ancho del encabezado en bits.
-    parameter BIT_REVERSE = 0,		// Controla si se debe invertir el orden de los bits en las señales de salida.
-    parameter SCRAMBLER_DISABLE = 0,	// Habilita o deshabilita el mecanismo de scrambling.
-    parameter PRBS31_ENABLE = 0,	// Habilita la generación de secuencias de bits pseudoaleatorias de 31 bits.
-    parameter SERDES_PIPELINE = 0	// Define la profundidad del pipeline del SERDES.
+    parameter DATA_WIDTH = 64,			        //! Ancho de datos
+    parameter CTRL_WIDTH = (DATA_WIDTH/8),	    //! Ancho de control
+    parameter HDR_WIDTH = 2,			        //! Ancho de header
+    parameter BIT_REVERSE = 0,			        //! Flag que habilita la inversión de bits
+    parameter SCRAMBLER_DISABLE = 0,		    //! Flag que habilita el scrambler
+    parameter PRBS31_ENABLE = 0,		        //! Flag que habilita la generacion de patrones pseudoaleatorios PRBS31
+    parameter SERDES_PIPELINE = 0		        //! Flag que habilita el uso de pipeline en el SERDES
 )
 (
-    input  wire                  clk,	// Entrada: reloj del sistema
-    input  wire                  rst,	// Entrada: señal de reincio
+    input  wire                  clk,		    //! Señal de clock
+    input  wire                  rst,		    //! Señal de reset
 
     /*
      * 10GBASE-R encoded interface
      */
-    input  wire [DATA_WIDTH-1:0] encoded_tx_data,	// Entrada: datos codificados para la transmisión
-    input  wire [HDR_WIDTH-1:0]  encoded_tx_hdr,	// Entrada: encabezado de los datos codificados
+    input  wire [DATA_WIDTH-1:0] encoded_tx_data,	        //! Datos codificados para la transmisión
+    input  wire [HDR_WIDTH-1:0]  encoded_tx_hdr,	        //! Encabezados de los datos codificados
 
     /*
      * SERDES interface
      */
-    output wire [DATA_WIDTH-1:0] serdes_tx_data,	// Salida: datos de salida para el SERDES
-    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		// Salida: encabezado de salida para el SERDES
+    output wire [DATA_WIDTH-1:0] serdes_tx_data,	        //! Datos de salida para el SERDES
+    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		        //! Encabezado de salida para el SERDES
 
     /*
      * Configuration
      */
-    input  wire                  cfg_tx_prbs31_enable	// Entrada: señal de habilitación para la generación de secuencias PRBS31
+    input  wire                  cfg_tx_prbs31_enable	    //! Señal de habilitación para la generación de secuencias PRBS31
 );
 
 // bus width assertions
@@ -75,19 +76,19 @@ initial begin
     end
 end
 
-reg [57:0] scrambler_state_reg = {58{1'b1}};	// Registro para el estado del scrambler. Lo inicializa en 58 unos
-wire [57:0] scrambler_state;			// bus de salida del estado del scrambler.
-wire [DATA_WIDTH-1:0] scrambled_data;		// bus de salida de datos obtenidos luego de aplicar el scrambling.
+reg [57:0] scrambler_state_reg = {58{1'b1}};	//! Registro para el estado del scrambler
+wire [57:0] scrambler_state;			        //! Estado del scrambler.
+wire [DATA_WIDTH-1:0] scrambled_data;		    //! Datos obtenidos luego de aplicar el scrambling.
 
-reg [30:0] prbs31_state_reg = 31'h7fffffff;	// Registro para el estado del generador PRBS31. Lo inicializa en 31 unos
-wire [30:0] prbs31_state;			// bus de salida del estado del generador PRBS31.
-wire [DATA_WIDTH+HDR_WIDTH-1:0] prbs31_data;	// bus de salida de datos generados por el generador PRBS31.
+reg [30:0] prbs31_state_reg = 31'h7fffffff;	    //! Registro para el estado del generador PRBS31. Lo inicializa en 31 unos
+wire [30:0] prbs31_state;			            //! Estado del generador PRBS31.
+wire [DATA_WIDTH+HDR_WIDTH-1:0] prbs31_data;	//! Datos generados por el generador PRBS31.
 
-reg [DATA_WIDTH-1:0] serdes_tx_data_reg = {DATA_WIDTH{1'b0}};	// registro que almacena los datos que se enviarán al transmisor SERDES inicializado en cero
-reg [HDR_WIDTH-1:0] serdes_tx_hdr_reg = {HDR_WIDTH{1'b0}};	// registro que almacena el encabezado que se enviará al transmisor SERDES inicializado en cero
+reg [DATA_WIDTH-1:0] serdes_tx_data_reg = {DATA_WIDTH{1'b0}};	//! Registro que almacena los datos que se enviarán al transmisor SERDES
+reg [HDR_WIDTH-1:0] serdes_tx_hdr_reg = {HDR_WIDTH{1'b0}};	    //! Registro que almacena el encabezado que se enviará al transmisor SERDES
 
-wire [DATA_WIDTH-1:0] serdes_tx_data_int;	// bus de salida para los datos del transmisor SERDES
-wire [HDR_WIDTH-1:0]  serdes_tx_hdr_int;	// bus de salida para el encabezado del transmisor SERDES	
+wire [DATA_WIDTH-1:0] serdes_tx_data_int;	                    //! Datos del transmisor SERDES
+wire [HDR_WIDTH-1:0]  serdes_tx_hdr_int;	                    //! Encabezado del transmisor SERDES	
 
 generate
     genvar n;
@@ -132,7 +133,7 @@ generate
 
 endgenerate
 
-// se instancia un módulo LFSR (Linear Feedback Shift Register) llamado scrambler_inst 
+//! Instancia un módulo LFSR (Linear Feedback Shift Register) para el scrambler
 lfsr #(
     .LFSR_WIDTH(58),
     .LFSR_POLY(58'h8000000001),
@@ -149,6 +150,7 @@ scrambler_inst (
     .state_out(scrambler_state)
 );
 
+//! Instancia un módulo LFSR (Linear Feedback Shift Register) para la generación de PRBS31
 lfsr #(
     .LFSR_WIDTH(31),
     .LFSR_POLY(31'h10000001),
@@ -165,6 +167,7 @@ prbs31_gen_inst (
     .state_out(prbs31_state)
 );
 
+//! Actualiza los registros en cada flanco positivo del clock
 always @(posedge clk) begin
     scrambler_state_reg <= scrambler_state;	// Actualiza el estado del LFSR scrambler_state_reg con el estado actual del módulo LFSR scrambler_state.
 

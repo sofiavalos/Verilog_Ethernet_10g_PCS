@@ -9,31 +9,31 @@
  */
 module xgmii_baser_dec_64 #
 (
-    parameter DATA_WIDTH = 64,			// ancho de datos
-    parameter CTRL_WIDTH = (DATA_WIDTH/8),	// ancho de control
-    parameter HDR_WIDTH = 2			// ancho de header
+    parameter DATA_WIDTH = 64,			    //! Ancho de datos
+    parameter CTRL_WIDTH = (DATA_WIDTH/8),	//! Ancho de control
+    parameter HDR_WIDTH = 2			        //! Ancho de header
 )
 (
-    input  wire                  clk,		// señal de clock
-    input  wire                  rst,		// señal de reinicio
+    input  wire                  clk,		//! Señal de clock
+    input  wire                  rst,		//! Señal de reset
 
     /*
      * 10GBASE-R encoded input
      */
-    input  wire [DATA_WIDTH-1:0] encoded_rx_data,	// datos de entrada codificados
-    input  wire [HDR_WIDTH-1:0]  encoded_rx_hdr,	// encabezado de entrada codificado
+    input  wire [DATA_WIDTH-1:0] encoded_rx_data,	//! Datos de entrada codificados
+    input  wire [HDR_WIDTH-1:0]  encoded_rx_hdr,	//! Encabezado de entrada codificado
 
     /*
      * XGMII interface
      */
-    output wire [DATA_WIDTH-1:0] xgmii_rxd,		// salida de datos para XGMII
-    output wire [CTRL_WIDTH-1:0] xgmii_rxc,		// salida de control para XGMII
+    output wire [DATA_WIDTH-1:0] xgmii_rxd,		//! Salida de datos para XGMII
+    output wire [CTRL_WIDTH-1:0] xgmii_rxc,		//! Salida de control para XGMII
 
     /*
      * Status
      */
-    output wire                  rx_bad_block,		// salida de estado para indicar bloques invalidos
-    output wire                  rx_sequence_error	// salida de estado para indicar errores de secuencia
+    output wire                  rx_bad_block,		//! Salida de estado para indicar bloques invalidos
+    output wire                  rx_sequence_error	//! Salida de estado para indicar errores de secuencia
 );
 
 // bus width assertions
@@ -55,67 +55,67 @@ initial begin
 end
 
 localparam [7:0]		// Codigos de control XGMII (tabla 49-1, pagina 11)
-    XGMII_IDLE   = 8'h07,	// XGMII Control Code para caracter de control idle
-    XGMII_LPI    = 8'h06,	// XGMII Control Code para caracter de control LPI
-    XGMII_START  = 8'hfb,	// XGMII Control Code para caracter de control start
-    XGMII_TERM   = 8'hfd,	// XGMII Control Code para caracter de control terminate
-    XGMII_ERROR  = 8'hfe,	// XGMII Control Code para caracter de control error
-    XGMII_SEQ_OS = 8'h9c,	// XGMII Control Code para caracter de control Sequence ordered set
-    XGMII_RES_0  = 8'h1c,	// XGMII Control Code para caracter de control reserved0
-    XGMII_RES_1  = 8'h3c,	// XGMII Control Code para caracter de control reserved1
-    XGMII_RES_2  = 8'h7c,	// XGMII Control Code para caracter de control reserved2
-    XGMII_RES_3  = 8'hbc,	// XGMII Control Code para caracter de control reserved3
-    XGMII_RES_4  = 8'hdc,	// XGMII Control Code para caracter de control reserved4
-    XGMII_RES_5  = 8'hf7,	// XGMII Control Code para caracter de control reserved5
-    XGMII_SIG_OS = 8'h5c;	// XGMII Control Code para caracter de control Signal ordered set
+    XGMII_IDLE   = 8'h07,	//! XGMII Control Code para caracter de control idle
+    XGMII_LPI    = 8'h06,	//! XGMII Control Code para caracter de control LPI
+    XGMII_START  = 8'hfb,	//! XGMII Control Code para caracter de control start
+    XGMII_TERM   = 8'hfd,	//! XGMII Control Code para caracter de control terminate
+    XGMII_ERROR  = 8'hfe,	//! XGMII Control Code para caracter de control error
+    XGMII_SEQ_OS = 8'h9c,	//! XGMII Control Code para caracter de control Sequence ordered set
+    XGMII_RES_0  = 8'h1c,	//! XGMII Control Code para caracter de control reserved0
+    XGMII_RES_1  = 8'h3c,	//! XGMII Control Code para caracter de control reserved1
+    XGMII_RES_2  = 8'h7c,	//! XGMII Control Code para caracter de control reserved2
+    XGMII_RES_3  = 8'hbc,	//! XGMII Control Code para caracter de control reserved3
+    XGMII_RES_4  = 8'hdc,	//! XGMII Control Code para caracter de control reserved4
+    XGMII_RES_5  = 8'hf7,	//! XGMII Control Code para caracter de control reserved5
+    XGMII_SIG_OS = 8'h5c;	//! XGMII Control Code para caracter de control Signal ordered set
 
 localparam [6:0]		// Codigos de Control 10GBASE-R (tabla 49-1, pagina 11)
-    CTRL_IDLE  = 7'h00,		// 10GBASE-R Control Code para caracter de control idle
-    CTRL_LPI   = 7'h06,		// 10GBASE-R Control Code para caracter de control LPI
-    CTRL_ERROR = 7'h1e,		// 10GBASE-R Control Code para caracter de control error
-    CTRL_RES_0 = 7'h2d,		// 10GBASE-R Control Code para caracter de control reserved0
-    CTRL_RES_1 = 7'h33,		// 10GBASE-R Control Code para caracter de control reserved1
-    CTRL_RES_2 = 7'h4b,		// 10GBASE-R Control Code para caracter de control reserved2
-    CTRL_RES_3 = 7'h55,		// 10GBASE-R Control Code para caracter de control reserved3
-    CTRL_RES_4 = 7'h66,		// 10GBASE-R Control Code para caracter de control reserved4
-    CTRL_RES_5 = 7'h78;		// 10GBASE-R Control Code para caracter de control reserved5
+    CTRL_IDLE  = 7'h00,		//! 10GBASE-R Control Code para caracter de control idle
+    CTRL_LPI   = 7'h06,		//! 10GBASE-R Control Code para caracter de control LPI
+    CTRL_ERROR = 7'h1e,		//! 10GBASE-R Control Code para caracter de control error
+    CTRL_RES_0 = 7'h2d,		//! 10GBASE-R Control Code para caracter de control reserved0
+    CTRL_RES_1 = 7'h33,		//! 10GBASE-R Control Code para caracter de control reserved1
+    CTRL_RES_2 = 7'h4b,		//! 10GBASE-R Control Code para caracter de control reserved2
+    CTRL_RES_3 = 7'h55,		//! 10GBASE-R Control Code para caracter de control reserved3
+    CTRL_RES_4 = 7'h66,		//! 10GBASE-R Control Code para caracter de control reserved4
+    CTRL_RES_5 = 7'h78;		//! 10GBASE-R Control Code para caracter de control reserved5
 
 localparam [3:0]		// Codigo O 10GBASE-R (tabla 49-1, pagina 11)
-    O_SEQ_OS = 4'h0,		// 10GBASE-R O Code para caracter de control Sequence ordered set
-    O_SIG_OS = 4'hf;		// 10GBASE-R O Code para caracter de control Signal ordered set
+    O_SEQ_OS = 4'h0,		//! 10GBASE-R O Code para caracter de control Sequence ordered set
+    O_SIG_OS = 4'hf;		//! 10GBASE-R O Code para caracter de control Signal ordered set
 
 localparam [1:0]
-    SYNC_DATA = 2'b10,		// Header de Sincronizacion para bloque de datos (esto no deberia ser al revés?)
-    SYNC_CTRL = 2'b01;		// Header de Sincronizacion para bloque de control
+    SYNC_DATA = 2'b10,		//! Header de Sincronizacion para bloque de datos
+    SYNC_CTRL = 2'b01;		//! Header de Sincronizacion para bloque de control
 
 localparam [7:0]	// block formarts 64b/66b (figura 49-7, pagina 10)
-    BLOCK_TYPE_CTRL     = 8'h1e, // C7 C6 C5 C4 C3 C2 C1 C0 BT
-    BLOCK_TYPE_OS_4     = 8'h2d, // D7 D6 D5 O4 C3 C2 C1 C0 BT
-    BLOCK_TYPE_START_4  = 8'h33, // D7 D6 D5    C3 C2 C1 C0 BT
-    BLOCK_TYPE_OS_START = 8'h66, // D7 D6 D5    O0 D3 D2 D1 BT
-    BLOCK_TYPE_OS_04    = 8'h55, // D7 D6 D5 O4 O0 D3 D2 D1 BT
-    BLOCK_TYPE_START_0  = 8'h78, // D7 D6 D5 D4 D3 D2 D1    BT
-    BLOCK_TYPE_OS_0     = 8'h4b, // C7 C6 C5 C4 O0 D3 D2 D1 BT
-    BLOCK_TYPE_TERM_0   = 8'h87, // C7 C6 C5 C4 C3 C2 C1    BT
-    BLOCK_TYPE_TERM_1   = 8'h99, // C7 C6 C5 C4 C3 C2    D0 BT
-    BLOCK_TYPE_TERM_2   = 8'haa, // C7 C6 C5 C4 C3    D1 D0 BT
-    BLOCK_TYPE_TERM_3   = 8'hb4, // C7 C6 C5 C4    D2 D1 D0 BT
-    BLOCK_TYPE_TERM_4   = 8'hcc, // C7 C6 C5    D3 D2 D1 D0 BT
-    BLOCK_TYPE_TERM_5   = 8'hd2, // C7 C6    D4 D3 D2 D1 D0 BT
-    BLOCK_TYPE_TERM_6   = 8'he1, // C7    D5 D4 D3 D2 D1 D0 BT
-    BLOCK_TYPE_TERM_7   = 8'hff; //    D6 D5 D4 D3 D2 D1 D0 BT
+    BLOCK_TYPE_CTRL     = 8'h1e, //! C7 C6 C5 C4 C3 C2 C1 C0 BT
+    BLOCK_TYPE_OS_4     = 8'h2d, //! D7 D6 D5 O4 C3 C2 C1 C0 BT
+    BLOCK_TYPE_START_4  = 8'h33, //! D7 D6 D5    C3 C2 C1 C0 BT
+    BLOCK_TYPE_OS_START = 8'h66, //! D7 D6 D5    O0 D3 D2 D1 BT
+    BLOCK_TYPE_OS_04    = 8'h55, //! D7 D6 D5 O4 O0 D3 D2 D1 BT
+    BLOCK_TYPE_START_0  = 8'h78, //! D7 D6 D5 D4 D3 D2 D1    BT
+    BLOCK_TYPE_OS_0     = 8'h4b, //! C7 C6 C5 C4 O0 D3 D2 D1 BT
+    BLOCK_TYPE_TERM_0   = 8'h87, //! C7 C6 C5 C4 C3 C2 C1    BT
+    BLOCK_TYPE_TERM_1   = 8'h99, //! C7 C6 C5 C4 C3 C2    D0 BT
+    BLOCK_TYPE_TERM_2   = 8'haa, //! C7 C6 C5 C4 C3    D1 D0 BT
+    BLOCK_TYPE_TERM_3   = 8'hb4, //! C7 C6 C5 C4    D2 D1 D0 BT
+    BLOCK_TYPE_TERM_4   = 8'hcc, //! C7 C6 C5    D3 D2 D1 D0 BT
+    BLOCK_TYPE_TERM_5   = 8'hd2, //! C7 C6    D4 D3 D2 D1 D0 BT
+    BLOCK_TYPE_TERM_6   = 8'he1, //! C7    D5 D4 D3 D2 D1 D0 BT
+    BLOCK_TYPE_TERM_7   = 8'hff; //!    D6 D5 D4 D3 D2 D1 D0 BT
 
-reg [DATA_WIDTH-1:0] decoded_ctrl;	// registro para almacenar control decodificado
-reg [CTRL_WIDTH-1:0] decode_err;	// registro para almacenar errores en decodificacion
+reg [DATA_WIDTH-1:0] decoded_ctrl;	//! Registro para almacenar control decodificado
+reg [CTRL_WIDTH-1:0] decode_err;	//! Registro para almacenar errores en decodificacion
 
-reg [DATA_WIDTH-1:0] xgmii_rxd_reg = {DATA_WIDTH{1'b0}}, xgmii_rxd_next;	// registro para almacenar la salida de datos de XGMII
-reg [CTRL_WIDTH-1:0] xgmii_rxc_reg = {CTRL_WIDTH{1'b0}}, xgmii_rxc_next;	// registro para almacenar la salida de control de XGMII
+reg [DATA_WIDTH-1:0] xgmii_rxd_reg = {DATA_WIDTH{1'b0}}, xgmii_rxd_next;	//! Registro para almacenar la salida de datos de XGMII
+reg [CTRL_WIDTH-1:0] xgmii_rxc_reg = {CTRL_WIDTH{1'b0}}, xgmii_rxc_next;	//! Registro para almacenar la salida de control de XGMII
 
-reg rx_bad_block_reg = 1'b0, rx_bad_block_next;			// registro para almacenar el estado de bloques incorrectos
-reg rx_sequence_error_reg = 1'b0, rx_sequence_error_next;	// registro para almacenar el estado de errores de secuencia
-reg frame_reg = 1'b0, frame_next;				// registro para indicar el inicio de un nuevo marco de datos
+reg rx_bad_block_reg = 1'b0, rx_bad_block_next;			    //! Registro para almacenar el estado de bloques incorrectos
+reg rx_sequence_error_reg = 1'b0, rx_sequence_error_next;	//! Registro para almacenar el estado de errores de secuencia
+reg frame_reg = 1'b0, frame_next;				            //! Registro para indicar el inicio de un nuevo marco de datos
 
-assign xgmii_rxd = xgmii_rxd_reg;	// asignamos las salidas a sus respectivos registros
+assign xgmii_rxd = xgmii_rxd_reg;	
 assign xgmii_rxc = xgmii_rxc_reg;
 
 assign rx_bad_block = rx_bad_block_reg;
@@ -123,6 +123,7 @@ assign rx_sequence_error = rx_sequence_error_reg;
 
 integer i;
 
+//! Recibe los datos y los decodifica segun el caso que corresponda y los diferentes codigos para los diferentes estados
 always @* begin
     xgmii_rxd_next = {8{XGMII_ERROR}};		// el siguiente valor de salida de datos es 8 veces XGMII_ERROR (error en la transmision)
     xgmii_rxc_next = 8'hff;			// el siguiente valor de salida de control es FF (valor de control predeterminado o invalido)
@@ -375,7 +376,7 @@ always @* begin
     end
 end
 
-always @(posedge clk) begin		// en cada flanco positivo de clock se actualizan los registros y se verifica si hubo un reset, en cuyo caso el frame pasa a ser 0
+always @(posedge clk) begin		//! En cada flanco positivo de clock se actualizan los registros y se verifica si hubo un reset
     xgmii_rxd_reg <= xgmii_rxd_next;
     xgmii_rxc_reg <= xgmii_rxc_next;
 

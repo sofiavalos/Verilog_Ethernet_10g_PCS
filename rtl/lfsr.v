@@ -33,27 +33,27 @@ THE SOFTWARE.
  */
 module lfsr #
 (
-    // ancho del LFSR
+    //! Ancho del LFSR
     parameter LFSR_WIDTH = 31,
-    // polinomio del LFSR
+    //! Polinomio del LFSR
     parameter LFSR_POLY = 31'h10000001,	// los 31 bits son el grado del polinomio, después los términos 1 y x^y se representan por 1, en este caso: x^31+x^28+1. El término más grande del polinomio (x^31) no se incluye en este parámetro, sino que se genera automáticamente por LFSR_WIDTH
-    // LFSR configuracion: "GALOIS", "FIBONACCI" Fibonacci is generally used for linear-feedback shift registers (LFSR) for pseudorandom binary sequence (PRBS) generators, scramblers, and descrambers,
-    // while Galois is generally used for cyclic redundancy check generators and checkers.
+    //! Configuracion del LFSR: "GALOIS", "FIBONACCI" 
+    //Fibonacci is generally used for linear-feedback shift registers (LFSR) for pseudorandom binary sequence (PRBS) generators, scramblers, and descrambers while Galois is generally used for cyclic redundancy check generators and checkers.
     parameter LFSR_CONFIG = "FIBONACCI",	// genera secuencias binarias pseudoaleatorias
-    // LFSR feed forward enable: habilita el feed forward en vez de feedback (en este caso no está habilitado)
+    //! LFSR feed forward enable:
     parameter LFSR_FEED_FORWARD = 0, 		// Enable this for PRBS checking and self- synchronous descrambling.
-    // bit-reverse input and output: en este caso no invierte la entrada y salida del LFSR
+    //! Reversion de bits
     parameter REVERSE = 0,	//Shifts MSB first by default, set REVERSE for LSB first.
-    // width of data input
+    //! Tamaño de los datos de entrada
     parameter DATA_WIDTH = 8,
-    // implementation style: "AUTO", "LOOP", "REDUCTION"
+    //! Estilo de implementacion: "AUTO", "LOOP", "REDUCTION"
     parameter STYLE = "AUTO"	// selecciona automáticamente el estilo de implementación del LFSR según el entorno de simulación o síntesis
 )
 (
-    input  wire [DATA_WIDTH-1:0] data_in,	// datos de entrada que se desplazarán a través del LFSR
-    input  wire [LFSR_WIDTH-1:0] state_in,	// estado actual del LFSR
-    output wire [DATA_WIDTH-1:0] data_out,	// datos de salida que representan los bits desplazados fuera del LFSR
-    output wire [LFSR_WIDTH-1:0] state_out	// próximo estado del LFSR
+    input  wire [DATA_WIDTH-1:0] data_in,	//! Datos de entrada que se desplazarán a través del LFSR
+    input  wire [LFSR_WIDTH-1:0] state_in,	//! Estado actual del LFSR
+    output wire [DATA_WIDTH-1:0] data_out,	//! Datos de salida que representan los bits desplazados fuera del LFSR
+    output wire [LFSR_WIDTH-1:0] state_out	//! Próximo estado del LFSR
 );
 
 /*
@@ -202,21 +202,21 @@ PRBS31      Fibonacci, inverted     31      31'h10000001    any
 
 */
 
-function [LFSR_WIDTH+DATA_WIDTH-1:0] lfsr_mask(input [31:0] index); // funcion que calcula la máscara para la operación LFSR. Recibe un índice como entrada y devuelve una máscara de btis que se utiliza para seleccionar los bits relevantes para el cálculo del próximo estado
-    reg [LFSR_WIDTH-1:0] lfsr_mask_state[LFSR_WIDTH-1:0];	// registro para almacenar el estado de la máscara del LFSR
-    reg [DATA_WIDTH-1:0] lfsr_mask_data[LFSR_WIDTH-1:0];	// registro para almacenar los datos del LFSR
-    reg [LFSR_WIDTH-1:0] output_mask_state[DATA_WIDTH-1:0];	// registro del estado de la máscara de salida
-    reg [DATA_WIDTH-1:0] output_mask_data[DATA_WIDTH-1:0];	// registro de los datos de la máscara de salida
+function [LFSR_WIDTH+DATA_WIDTH-1:0] lfsr_mask(input [31:0] index); //! Funcion que calcula la máscara para la operación LFSR. Recibe un índice como entrada y devuelve una máscara de btis que se utiliza para seleccionar los bits relevantes para el cálculo del próximo estado
+    reg [LFSR_WIDTH-1:0] lfsr_mask_state[LFSR_WIDTH-1:0];	    //! Registro para almacenar el estado de la máscara del LFSR
+    reg [DATA_WIDTH-1:0] lfsr_mask_data[LFSR_WIDTH-1:0];	    //! Registro para almacenar los datos del LFSR
+    reg [LFSR_WIDTH-1:0] output_mask_state[DATA_WIDTH-1:0];	    //! Registro del estado de la máscara de salida
+    reg [DATA_WIDTH-1:0] output_mask_data[DATA_WIDTH-1:0];	    //! Registro de los datos de la máscara de salida
 
-    reg [LFSR_WIDTH-1:0] state_val;	// registro adicional para almacenar valores de estado
-    reg [DATA_WIDTH-1:0] data_val;	// registro adicional para almacenar valores de datos
+    reg [LFSR_WIDTH-1:0] state_val;	//! Registro adicional para almacenar valores de estado
+    reg [DATA_WIDTH-1:0] data_val;	//! Registro adicional para almacenar valores de datos
 
     reg [DATA_WIDTH-1:0] data_mask;
 
     integer i, j;
 
     begin
-        // init bit masks inicializo los bits de la máscara
+        //! Init bit masks inicializo los bits de la máscara
         for (i = 0; i < LFSR_WIDTH; i = i + 1) begin
             lfsr_mask_state[i] = 0;		// inicializa en cero todos los bits del estado de la máscara
             lfsr_mask_state[i][i] = 1'b1;	// pone en uno los elementos de la diagonal principal (bits relevantes para el cálculo de la máscara)
@@ -230,7 +230,7 @@ function [LFSR_WIDTH+DATA_WIDTH-1:0] lfsr_mask(input [31:0] index); // funcion q
             output_mask_data[i] = 0;			// inicializa en cero los datos de la máscara de salida
         end
 
-        // simulate shift register
+        //! Simulate shift register
         if (LFSR_CONFIG == "FIBONACCI") begin
             // Fibonacci configuration
             for (data_mask = {1'b1, {DATA_WIDTH-1{1'b0}}}; data_mask != 0; data_mask = data_mask >> 1) begin //  inicializa data_mask con una secuencia binaria que comienza con un 1 seguido de ceros, y luego realiza un desplazamiento a la derecha en cada iteración hasta que data_mask sea cero.
@@ -308,7 +308,7 @@ function [LFSR_WIDTH+DATA_WIDTH-1:0] lfsr_mask(input [31:0] index); // funcion q
             $finish;
         end
 
-        // reverse bits if selected
+        // Reverse bits if selected
         if (REVERSE) begin
             if (index < LFSR_WIDTH) begin
                 state_val = 0;		//  Se inicializa state_val como cero
@@ -349,10 +349,10 @@ endfunction
 // synthesis translate_on
 
 `ifdef SIMULATION
-// "AUTO" style is "REDUCTION" for faster simulation
+//! "AUTO" style is "REDUCTION" for faster simulation
 parameter STYLE_INT = (STYLE == "AUTO") ? "REDUCTION" : STYLE;
 `else
-// "AUTO" style is "LOOP" for better synthesis result
+//! "AUTO" style is "LOOP" for better synthesis result
 parameter STYLE_INT = (STYLE == "AUTO") ? "LOOP" : STYLE;
 `endif
 

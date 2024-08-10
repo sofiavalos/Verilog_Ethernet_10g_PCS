@@ -33,60 +33,61 @@ THE SOFTWARE.
  */
 module eth_phy_10g #
 (
-    parameter DATA_WIDTH = 64,			// ancho de bus de datos de 64 bits
-    parameter CTRL_WIDTH = (DATA_WIDTH/8),	// ancho de bus de control en bytes
-    parameter HDR_WIDTH = 2,			// ancho de header de sincronizacion (01 para bloques de data 10 para control), permiten establecer límites de bloques
-    parameter BIT_REVERSE = 0,			// inversion de bits deshabilitada
-    parameter SCRAMBLER_DISABLE = 0,		// habilitado proceso scrambler
-    parameter PRBS31_ENABLE = 0,		// deshabilitada secuencia pseudoaletoria PRBS31 para pruebas
-    parameter TX_SERDES_PIPELINE = 0,		// no hay profundidad adicional de pipeline en las interfaces SERDES (serializacion/deserializacion) para la transmision de datos
-    parameter RX_SERDES_PIPELINE = 0,		// no hay profundidad adicional de pipeline en las interfaces SERDES (serializacion/deserializacion) para la recepcion de datos
-    parameter BITSLIP_HIGH_CYCLES = 1,		// 1 ciclos de reloj para el proceso de bitslip en alto
-    parameter BITSLIP_LOW_CYCLES = 8,		// 8 ciclos de reloj para el proceso de bitslip en bajo
-    parameter COUNT_125US = 125000/6.4		// Contador de 125 us
+    parameter DATA_WIDTH = 64,			    //! Ancho de bus de datos de 64 bits
+    parameter CTRL_WIDTH = (DATA_WIDTH/8),	//! Ancho de bus de control en bytes
+    parameter HDR_WIDTH = 2,			    //! Ancho de header de sincronizacion (01 para bloques de data 10 para control), permiten establecer límites de bloques
+    parameter BIT_REVERSE = 0,			    //! Flag para habilitar la inversión de bits
+    parameter SCRAMBLER_DISABLE = 0,		//! Flag para habilitar el scrambler
+    parameter PRBS31_ENABLE = 0,		    //! Flag para habilidar la secuencia pseudoaletoria PRBS31 para pruebas
+    parameter TX_SERDES_PIPELINE = 0,		//! Flag para habilitar el pipeline en el transmisor
+    parameter RX_SERDES_PIPELINE = 0,		//! Flag para habilitar el pipeline en el receptor
+    parameter BITSLIP_HIGH_CYCLES = 1,		//! Ciclos de bitslip bajos
+    parameter BITSLIP_LOW_CYCLES = 8,		//! Ciclos de bitslip altos
+    parameter COUNT_125US = 125000/6.4		//! Contador de 125 us
 )
 (
-    input  wire                  rx_clk,	// entrada señal de reloj para recepcion
-    input  wire                  rx_rst,	// entrada señal de reinicio de recepcion
-    input  wire                  tx_clk,	// entrada señal de reloj para transmision
-    input  wire                  tx_rst,	// entrada señal de reinicio de transmision
+    input  wire                  rx_clk,	// Señal de clock para el receptor
+    input  wire                  rx_rst,	// Señal de reset del receptor
+    input  wire                  tx_clk,	// Señal de clock para el transmisor
+    input  wire                  tx_rst,	// Señal de reset del transmisor
 
     /*
      * XGMII interface
      */
-    input  wire [DATA_WIDTH-1:0] xgmii_txd,	// entrada para transmitir datos a la capa fisica
-    input  wire [CTRL_WIDTH-1:0] xgmii_txc,	// entrada para transmitir control a la capa fisica
-    output wire [DATA_WIDTH-1:0] xgmii_rxd,	// salida para recibir datos de la capa fisica
-    output wire [CTRL_WIDTH-1:0] xgmii_rxc,	// salida para recibir control de la capa fisica
+    input  wire [DATA_WIDTH-1:0] xgmii_txd,	//! Entrada para transmitir datos a la capa fisica
+    input  wire [CTRL_WIDTH-1:0] xgmii_txc,	//! Entrada para transmitir control a la capa fisica
+    output wire [DATA_WIDTH-1:0] xgmii_rxd,	//! Salida para recibir datos de la capa fisica
+    output wire [CTRL_WIDTH-1:0] xgmii_rxc,	//! Salida para recibir control de la capa fisica
 
     /*
      * SERDES interface
      */
-    output wire [DATA_WIDTH-1:0] serdes_tx_data,	// salida para enviar datos serializados
-    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		// salida para enviar encabezados serializados
-    input  wire [DATA_WIDTH-1:0] serdes_rx_data,	// entrada para recibir datos serializados
-    input  wire [HDR_WIDTH-1:0]  serdes_rx_hdr,		// entrada para recibir encabezados serializados
-    output wire                  serdes_rx_bitslip,	
-    output wire                  serdes_rx_reset_req,
+    output wire [DATA_WIDTH-1:0] serdes_tx_data,	//! Salida para enviar datos serializados
+    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		//! Salida para enviar encabezados serializados
+    input  wire [DATA_WIDTH-1:0] serdes_rx_data,	//! Entrada para recibir datos serializados
+    input  wire [HDR_WIDTH-1:0]  serdes_rx_hdr,		//! Entrada para recibir encabezados serializados
+    output wire                  serdes_rx_bitslip,	//! Señal de bitslip 
+    output wire                  serdes_rx_reset_req, //! Señal de reset solicitado en el receptor
 
     /*
      * Status
      */
-    output wire                  tx_bad_block,
-    output wire [6:0]            rx_error_count,
-    output wire                  rx_bad_block,
-    output wire                  rx_sequence_error,
-    output wire                  rx_block_lock,
-    output wire                  rx_high_ber,
-    output wire                  rx_status,
+    output wire                  tx_bad_block,      //! Señal de estado para indicar un bloque defectuoso durante la transmisión
+    output wire [6:0]            rx_error_count,    //! Contador de errores del receptor
+    output wire                  rx_bad_block,      //! Señal de estado para indicar un bloque defectuoso durante la recepción
+    output wire                  rx_sequence_error, //! Señal de error en la secuencia
+    output wire                  rx_block_lock,     //! Señal de bloque alineado
+    output wire                  rx_high_ber,       //! Señal que indica un BER alto
+    output wire                  rx_status,         //! Señal que indica bloque alineado sin BER en 125us
 
     /*
      * Configuration
      */
-    input  wire                  cfg_tx_prbs31_enable,
-    input  wire                  cfg_rx_prbs31_enable
+    input  wire                  cfg_tx_prbs31_enable,  //! Señal que habilita PRBS31 en el transmisor
+    input  wire                  cfg_rx_prbs31_enable   //! Señal que habilita PRBS31 en el receptor
 );
 
+//! Modulo que coordina la decodificación de datos XGMII y gestiona la interfaz con el SERDES del receptor
 eth_phy_10g_rx #(
     .DATA_WIDTH(DATA_WIDTH),
     .CTRL_WIDTH(CTRL_WIDTH),
@@ -117,7 +118,8 @@ eth_phy_10g_rx_inst (
     .cfg_rx_prbs31_enable(cfg_rx_prbs31_enable)
 );
 
-eth_phy_10g_tx #(			// se instancia modulo que coordina la codificación de datos XGMII y gestiona la interfaz con el SERDES de transmisión.
+//! Modulo que coordina la codificación de datos XGMII y gestiona la interfaz con el SERDES de transmisión.
+eth_phy_10g_tx #(			
     .DATA_WIDTH(DATA_WIDTH),
     .CTRL_WIDTH(CTRL_WIDTH),
     .HDR_WIDTH(HDR_WIDTH),

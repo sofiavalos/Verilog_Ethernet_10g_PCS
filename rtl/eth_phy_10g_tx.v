@@ -9,39 +9,39 @@
  */
 module eth_phy_10g_tx #
 (
-    parameter DATA_WIDTH = 64,			// ancho de los datos
-    parameter CTRL_WIDTH = (DATA_WIDTH/8),	// ancho de control
-    parameter HDR_WIDTH = 2,			// ancho de header
-    parameter BIT_REVERSE = 0,			// inversion de bits deshabilitada
-    parameter SCRAMBLER_DISABLE = 0,		// habilitado el scrambler
-    parameter PRBS31_ENABLE = 0,		// deshabilitado generacion de patrones pseudoaleatorios PRBS31
-    parameter SERDES_PIPELINE = 0		// deshabilitado el uso de una pipeline en el SERDES
+    parameter DATA_WIDTH = 64,			        //! Ancho de datos
+    parameter CTRL_WIDTH = (DATA_WIDTH/8),	    //! Ancho de control
+    parameter HDR_WIDTH = 2,			        //! Ancho de header
+    parameter BIT_REVERSE = 0,			        //! Flag que habilita la inversión de bits
+    parameter SCRAMBLER_DISABLE = 0,		    //! Flag que habilita el scrambler
+    parameter PRBS31_ENABLE = 0,		        //! Flag que habilita la generacion de patrones pseudoaleatorios PRBS31
+    parameter SERDES_PIPELINE = 0		        //! Flag que habilita el uso de pipeline en el SERDES
 )
 (
-    input  wire                  clk,		// entrada de clock
-    input  wire                  rst,		// señal de reset
+    input  wire                  clk,		    //! Señal de clock
+    input  wire                  rst,		    //! Señal de reset
 
     /*
      * XGMII interface
      */
-    input  wire [DATA_WIDTH-1:0] xgmii_txd,	// datos de entrada de XGMII que se transmitirán
-    input  wire [CTRL_WIDTH-1:0] xgmii_txc,	// señales de control de XGMII
+    input  wire [DATA_WIDTH-1:0] xgmii_txd	            //! Datos de entrada de XGMII a transmitirse
+    input  wire [CTRL_WIDTH-1:0] xgmii_txc,	            //! Señales de control de la interfaz XGMII
 
     /*
      * SERDES interface
      */
-    output wire [DATA_WIDTH-1:0] serdes_tx_data,	// datos de salida para SERDES
-    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		// header de salida para SERDES
+    output wire [DATA_WIDTH-1:0] serdes_tx_data,	    //! Datos de salida para SERDES
+    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		    //! Header de salida para SERDES
 
     /*
      * Status
      */
-    output wire                  tx_bad_block,		// señal de estado para indicar un bloque defectuoso durante la transmisión
+    output wire                  tx_bad_block,		    //! Señal de estado para indicar un bloque defectuoso durante la transmisión
 
     /*
      * Configuration
      */
-    input  wire                  cfg_tx_prbs31_enable	// entrada para habilitar la generacion de patrones PRBS31
+    input  wire                  cfg_tx_prbs31_enable	//! Entrada para habilitar la generacion de patrones PRBS31
 );
 
 // bus width assertions
@@ -62,10 +62,11 @@ initial begin
     end
 end
 
-wire [DATA_WIDTH-1:0] encoded_tx_data;		// señal para datos codificados
-wire [HDR_WIDTH-1:0]  encoded_tx_hdr;		// señal para encabezado codigficado
+wire [DATA_WIDTH-1:0] encoded_tx_data;		//! Señal para datos codificados
+wire [HDR_WIDTH-1:0]  encoded_tx_hdr;		//! Señal para encabezado codificado
 
-xgmii_baser_enc_64 #(				// se instancia codificacion de datos segun estandar XGMII
+//! Instancia de modulo para la codificacion de datos segun estandar XGMII
+xgmii_baser_enc_64 #(				
     .DATA_WIDTH(DATA_WIDTH),
     .CTRL_WIDTH(CTRL_WIDTH),
     .HDR_WIDTH(HDR_WIDTH)
@@ -80,7 +81,8 @@ xgmii_baser_enc_inst (
     .tx_bad_block(tx_bad_block)
 );
 
-eth_phy_10g_tx_if #(				// se instancia modulo que se encarga de la recepción de datos codificados desde la capa XGMII, la configuración de la transmisión según parámetros como el bit reverse, la habilitación o deshabilitación de scrambler y la generación de PRBS31, así como la transmisión de estos datos codificados y la configuración del SERDES.
+//! Instancia para la recepción de datos codificados desde la capa XGMII, la configuración de la transmisión según parámetros como el bit reverse, la habilitación o deshabilitación de scrambler y la generación de PRBS31, así como la transmisión de estos datos codificados y la configuración del SERDES.
+eth_phy_10g_tx_if #(				
     .DATA_WIDTH(DATA_WIDTH),
     .HDR_WIDTH(HDR_WIDTH),
     .BIT_REVERSE(BIT_REVERSE),
