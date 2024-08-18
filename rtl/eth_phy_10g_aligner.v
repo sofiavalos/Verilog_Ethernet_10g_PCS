@@ -5,9 +5,9 @@
  */
 module eth_phy_10g_rx_aligner
 #(
-    parameter FRAME_WIDTH       = 66                                                                                            ,
     parameter DATA_WIDTH        = 64                                                                                            ,
-    parameter HDR_WIDTH         = 2                                                                                             
+    parameter HDR_WIDTH         = 2                                                                                             ,
+    parameter FRAME_WIDTH       = DATA_WIDTH + HDR_WIDTH
 )
 (
     // Status
@@ -37,7 +37,8 @@ module eth_phy_10g_rx_aligner
 
     reg [HDR_WIDTH      - 1 : 0] serdes_rx_hdr_r                                                                                ;
     reg [DATA_WIDTH     - 1 : 0] serdes_rx_data_r                                                                               ;
-    reg [(FRAME_WIDTH -1)*2 : 0] serdes_rx_frames                                                                               ;
+    reg [(FRAME_WIDTH *2)-1 : 0] serdes_rx_frames                                                                               ;
+    reg [(FRAME_WIDTH *2)-1 : 0] serdes_rx_frames_next                                                                          ;
     reg [FRAME_WIDTH    - 1 : 0] serdes_rx_prev                                                                                 ;
     reg [SH_HDR_VALID   - 1 : 0] sh_count                                                                                       ;
     reg [SH_HDR_VALID   - 1 : 0] sh_count_next                                                                                  ;
@@ -73,13 +74,13 @@ module eth_phy_10g_rx_aligner
                 sh_invalid_count_next = sh_invalid_count                                                                        ;
                 slip_next             = slip                                                                                    ;
                 if(slip < FRAME_WIDTH - 1) begin
-                    if(i_serdes_rx[FRAME_WIDTH - slip - 1] != i_serdes_rx[FRAME_WIDTH - slip -2]) 
+                    if(i_serdes_rx[FRAME_WIDTH - slip - 1] ^ i_serdes_rx[FRAME_WIDTH - slip -2]) 
                         state_next    = STATE_VALID_SH                                                                          ;
                     else
                         state_next    = STATE_INVALID_SH                                                                        ;  
                 end      
                 else begin
-                    if(serdes_rx_prev[0] != i_serdes_rx[FRAME_WIDTH - 1])
+                    if(serdes_rx_prev[0] ^ i_serdes_rx[FRAME_WIDTH - 1])
                         state_next    = STATE_VALID_SH                                                                          ;
                     else
                         state_next    = STATE_INVALID_SH                                                                        ;  
@@ -114,7 +115,7 @@ module eth_phy_10g_rx_aligner
                 sh_count_next         = sh_count                                                                                ;
                 sh_invalid_count_next = sh_invalid_count                                                                        ;
                 if(slip < FRAME_WIDTH -1)
-                    slip_next         = slip + {{FRAME_WIDTH  - 2{1'b0}},1'b1};
+                    slip_next         = slip + {{FRAME_WIDTH  - 2{1'b0}},1'b1}                                                  ;
                 else
                     slip_next         = 1'b0;             
                 state_next            = STATE_RESET_CNT                                                                         ;
@@ -156,26 +157,27 @@ module eth_phy_10g_rx_aligner
             state                       <= state_next;
             serdes_rx_prev              <= i_serdes_rx                                                                          ;
         end
-        
+
         if(rx_block_lock_r) begin
-            serdes_rx_frames            = {serdes_rx_prev, i_serdes_rx}                                                         ;
-            serdes_rx_frames            = serdes_rx_frames << slip                                                              ;
-            serdes_rx_data_r            = serdes_rx_frames[(FRAME_WIDTH -1)*2 -  HDR_WIDTH : FRAME_WIDTH - 1]                   ;
-            serdes_rx_hdr_r             = serdes_rx_frames[(FRAME_WIDTH -1)*2 -: HDR_WIDTH                  ]                   ;
+            serdes_rx_frames            <= {serdes_rx_prev, i_serdes_rx}                                                        ;
+            serdes_rx_frames_next       <= serdes_rx_frames << slip                                                             ;
+            serdes_rx_data_r            <= serdes_rx_frames_next[(FRAME_WIDTH *2)-1 -  HDR_WIDTH : FRAME_WIDTH - 1]             ;
+            serdes_rx_hdr_r             <= serdes_rx_frames_next[(FRAME_WIDTH *2)-1 -: HDR_WIDTH                  ]             ;
         end
         else begin
-            serdes_rx_hdr_r             = {HDR_WIDTH{1'b0}     }                                                                ;
-            serdes_rx_data_r            = {DATA_WIDTH/2 {8'h07}}                                                                ;
-            serdes_rx_frames            = 'd0                                                                                   ;
+            serdes_rx_hdr_r             <= {HDR_WIDTH{1'b0}     }                                                               ;
+            serdes_rx_data_r            <= {DATA_WIDTH/2 {8'h07}}                                                               ;
+            serdes_rx_frames            <= 'd0                                                                                  ;
+            serdes_rx_frames_next       <= 'd0                                                                                  ;
         end
-    
+
     end
 
+    
 
     assign o_rx_block_lock  = rx_block_lock_r                                                                                   ;
     assign o_serdes_rx_data = serdes_rx_data_r                                                                                  ;
     assign o_serdes_rx_hdr  = serdes_rx_hdr_r                                                                                   ;
-
 
 
 

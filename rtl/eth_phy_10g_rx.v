@@ -14,6 +14,7 @@ module eth_phy_10g_rx #
     parameter DATA_WIDTH = 64,                                      //! Ancho del bus de datos
     parameter CTRL_WIDTH = (DATA_WIDTH/8),                          //! Ancho del bus de control
     parameter HDR_WIDTH = 2,			                            //! Ancho de bus de header
+    parameter FRAME_WIDTH = DATA_WIDTH + HDR_WIDTH,
     parameter BIT_REVERSE = 0,			                            //! Flag para habilitar reversión de bits
     parameter SCRAMBLER_DISABLE = 0,		                        //! Flag para habilitar scrambler
     parameter PRBS31_ENABLE = 0,		                            //! Flag para habilitar PRBS31
@@ -35,8 +36,8 @@ module eth_phy_10g_rx #
     /*
      * SERDES interface
      */
-    input  wire [DATA_WIDTH-1:0] serdes_rx_data,                    //! Datos de la interfaz serdes del receptor
-    input  wire [HDR_WIDTH-1:0]  serdes_rx_hdr,                     //! Sync eader de la interfaz SERDES del receptor
+    input  wire [FRAME_WIDTH-1:0] serdes_rx,                        //! Datos de la interfaz serdes del receptor
+
     output wire                  serdes_rx_bitslip,                 //! Flag de bitslip del SERDES
     output wire                  serdes_rx_reset_req,               //! Flag de solicitud de reset del SERDES
 
@@ -46,7 +47,8 @@ module eth_phy_10g_rx #
     output wire [6:0]            rx_error_count,                    //! Contador de errores
     output wire                  rx_bad_block,                      //! Flag de bloque con error
     output wire                  rx_sequence_error,                 //! Flag de error de secuencia
-    output wire                  rx_block_lock,                     //! Flag de bloque alineado
+    output wire                  rx_block_lock,                     //! Flag de bloque alineador
+    output wire                  o_rx_block_lock,
     output wire                  rx_high_ber,                       //! Flag de bit rate error alto
     output wire                  rx_status,                         //! Flag del estado del receptor
 
@@ -76,6 +78,24 @@ end
 
 wire [DATA_WIDTH-1:0] encoded_rx_data;                          //! Datos codificados del rx
 wire [HDR_WIDTH-1:0]  encoded_rx_hdr;                           //! Sync header codificado del rx
+
+wire [DATA_WIDTH-1:0] o_serdes_rx_data;
+wire [HDR_WIDTH-1:0]  o_serdes_rx_hdr;
+
+eth_phy_10g_rx_aligner #(
+    .DATA_WIDTH     (DATA_WIDTH)    ,
+    .HDR_WIDTH      (HDR_WIDTH)     ,
+    .FRAME_WIDTH    (FRAME_WIDTH)
+)
+eth_phy_10g_rx_aligner_inst
+(
+    .clk                (clk)               ,
+    .i_rst              (rst)               ,
+    .i_serdes_rx        (serdes_rx)         ,
+    .o_serdes_rx_hdr    (o_serdes_rx_hdr)   ,
+    .o_serdes_rx_data   (o_serdes_rx_data)  ,
+    .o_rx_block_lock    (o_rx_block_lock)
+);
 
 //! Instancia modulo if del receptor que utiliza interfaz SERDES
 eth_phy_10g_rx_if #(

@@ -25,7 +25,7 @@ THE SOFTWARE.
 // Language: Verilog 2001
 
 `resetall
-`timescale 1ns / 1ps
+`timescale 1us / 1us
 `default_nettype none
 
 /*
@@ -33,65 +33,66 @@ THE SOFTWARE.
  */
 module eth_phy_10g #
 (
-    parameter DATA_WIDTH = 64,			    //! Ancho de bus de datos de 64 bits
-    parameter CTRL_WIDTH = (DATA_WIDTH/8),	//! Ancho de bus de control en bytes
-    parameter HDR_WIDTH = 2,			    //! Ancho de header de sincronizacion (01 para bloques de data 10 para control), permiten establecer límites de bloques
-    parameter BIT_REVERSE = 0,			    //! Flag para habilitar la inversión de bits
-    parameter SCRAMBLER_DISABLE = 0,		//! Flag para habilitar el scrambler
-    parameter PRBS31_ENABLE = 0,		    //! Flag para habilidar la secuencia pseudoaletoria PRBS31 para pruebas
-    parameter TX_SERDES_PIPELINE = 0,		//! Flag para habilitar el pipeline en el transmisor
-    parameter RX_SERDES_PIPELINE = 0,		//! Flag para habilitar el pipeline en el receptor
-    parameter BITSLIP_HIGH_CYCLES = 1,		//! Ciclos de bitslip bajos
-    parameter BITSLIP_LOW_CYCLES = 8,		//! Ciclos de bitslip altos
-    parameter COUNT_125US = 125000/6.4		//! Contador de 125 us
+    parameter DATA_WIDTH = 64,
+    parameter CTRL_WIDTH = (DATA_WIDTH/8),
+    parameter HDR_WIDTH = 2,
+    parameter FRAME_WIDTH = DATA_WIDTH + HDR_WIDTH,
+    parameter BIT_REVERSE = 0,
+    parameter SCRAMBLER_DISABLE = 0,
+    parameter PRBS31_ENABLE = 0,
+    parameter TX_SERDES_PIPELINE = 0,
+    parameter RX_SERDES_PIPELINE = 0,
+    parameter BITSLIP_HIGH_CYCLES = 1,
+    parameter BITSLIP_LOW_CYCLES = 8,
+    parameter COUNT_125US = 125000/6.4
 )
 (
-    input  wire                  rx_clk,	// Señal de clock para el receptor
-    input  wire                  rx_rst,	// Señal de reset del receptor
-    input  wire                  tx_clk,	// Señal de clock para el transmisor
-    input  wire                  tx_rst,	// Señal de reset del transmisor
+    input  wire                  rx_clk,
+    input  wire                  rx_rst,
+    input  wire                  tx_clk,
+    input  wire                  tx_rst,
 
     /*
      * XGMII interface
      */
-    input  wire [DATA_WIDTH-1:0] xgmii_txd,	//! Entrada para transmitir datos a la capa fisica
-    input  wire [CTRL_WIDTH-1:0] xgmii_txc,	//! Entrada para transmitir control a la capa fisica
-    output wire [DATA_WIDTH-1:0] xgmii_rxd,	//! Salida para recibir datos de la capa fisica
-    output wire [CTRL_WIDTH-1:0] xgmii_rxc,	//! Salida para recibir control de la capa fisica
+    input  wire [DATA_WIDTH-1:0] xgmii_txd,
+    input  wire [CTRL_WIDTH-1:0] xgmii_txc,
+    output wire [DATA_WIDTH-1:0] xgmii_rxd,
+    output wire [CTRL_WIDTH-1:0] xgmii_rxc,
 
     /*
      * SERDES interface
      */
-    output wire [DATA_WIDTH-1:0] serdes_tx_data,	//! Salida para enviar datos serializados
-    output wire [HDR_WIDTH-1:0]  serdes_tx_hdr,		//! Salida para enviar encabezados serializados
-    input  wire [DATA_WIDTH-1:0] serdes_rx_data,	//! Entrada para recibir datos serializados
-    input  wire [HDR_WIDTH-1:0]  serdes_rx_hdr,		//! Entrada para recibir encabezados serializados
-    output wire                  serdes_rx_bitslip,	//! Señal de bitslip 
-    output wire                  serdes_rx_reset_req, //! Señal de reset solicitado en el receptor
+    output wire [DATA_WIDTH-1:0]  serdes_tx_data,
+    output wire [HDR_WIDTH-1:0]   serdes_tx_hdr,
+    input  wire [FRAME_WIDTH-1:0] serdes_rx,
+    output wire                   serdes_rx_bitslip,
+    output wire                   serdes_rx_reset_req,
 
     /*
      * Status
      */
-    output wire                  tx_bad_block,      //! Señal de estado para indicar un bloque defectuoso durante la transmisión
-    output wire [6:0]            rx_error_count,    //! Contador de errores del receptor
-    output wire                  rx_bad_block,      //! Señal de estado para indicar un bloque defectuoso durante la recepción
-    output wire                  rx_sequence_error, //! Señal de error en la secuencia
-    output wire                  rx_block_lock,     //! Señal de bloque alineado
-    output wire                  rx_high_ber,       //! Señal que indica un BER alto
-    output wire                  rx_status,         //! Señal que indica bloque alineado sin BER en 125us
+    output wire                  tx_bad_block,
+    output wire [6:0]            rx_error_count,
+    output wire                  rx_bad_block,
+    output wire                  rx_sequence_error,
+    output wire                  rx_block_lock,
+    output wire                  o_rx_block_lock,
+    output wire                  rx_high_ber,
+    output wire                  rx_status,
 
     /*
      * Configuration
      */
-    input  wire                  cfg_tx_prbs31_enable,  //! Señal que habilita PRBS31 en el transmisor
-    input  wire                  cfg_rx_prbs31_enable   //! Señal que habilita PRBS31 en el receptor
+    input  wire                  cfg_tx_prbs31_enable,
+    input  wire                  cfg_rx_prbs31_enable
 );
 
-//! Modulo que coordina la decodificación de datos XGMII y gestiona la interfaz con el SERDES del receptor
 eth_phy_10g_rx #(
     .DATA_WIDTH(DATA_WIDTH),
     .CTRL_WIDTH(CTRL_WIDTH),
     .HDR_WIDTH(HDR_WIDTH),
+    .FRAME_WIDTH(FRAME_WIDTH),
     .BIT_REVERSE(BIT_REVERSE),
     .SCRAMBLER_DISABLE(SCRAMBLER_DISABLE),
     .PRBS31_ENABLE(PRBS31_ENABLE),
@@ -105,21 +106,20 @@ eth_phy_10g_rx_inst (
     .rst(rx_rst),
     .xgmii_rxd(xgmii_rxd),
     .xgmii_rxc(xgmii_rxc),
-    .serdes_rx_data(serdes_rx_data),
-    .serdes_rx_hdr(serdes_rx_hdr),
+    .serdes_rx(serdes_rx),
     .serdes_rx_bitslip(serdes_rx_bitslip),
     .serdes_rx_reset_req(serdes_rx_reset_req),
     .rx_error_count(rx_error_count),
     .rx_bad_block(rx_bad_block),
     .rx_sequence_error(rx_sequence_error),
     .rx_block_lock(rx_block_lock),
+    .o_rx_block_lock(o_rx_block_lock),
     .rx_high_ber(rx_high_ber),
     .rx_status(rx_status),
     .cfg_rx_prbs31_enable(cfg_rx_prbs31_enable)
 );
 
-//! Modulo que coordina la codificación de datos XGMII y gestiona la interfaz con el SERDES de transmisión.
-eth_phy_10g_tx #(			
+eth_phy_10g_tx #(
     .DATA_WIDTH(DATA_WIDTH),
     .CTRL_WIDTH(CTRL_WIDTH),
     .HDR_WIDTH(HDR_WIDTH),
