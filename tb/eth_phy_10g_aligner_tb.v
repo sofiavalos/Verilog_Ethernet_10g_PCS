@@ -72,7 +72,7 @@ module eth_phy_10g_aligner_tb;
     event terminate_sim;
 
     `define TEST8
-    `define PROB1
+    `define PROB3
     
     always #5 rx_clk = ~rx_clk                                                                                  ; 
     
@@ -87,6 +87,17 @@ module eth_phy_10g_aligner_tb;
 
             // 
             test_ok_cnt          = 'd0                                                                          ;
+            serdes_rx            = 'd0                                                                          ;
+            max                  = 'd0                                                                          ;
+            min                  = 'd0                                                                          ;
+            random_seed          = 'd0                                                                          ;
+            random_number        = 'd0                                                                          ;
+            test_ok_cnt          = 'd0                                                                          ;
+            i                    = 'd0                                                                          ;
+            j                    = 'd0                                                                          ;
+            k                    = 'd0                                                                          ;
+            percentage           = 'd0                                                                          ;
+            
             // Set Reset to 0
             #200
             @(posedge rx_clk)                                                                                   ; 
@@ -94,9 +105,9 @@ module eth_phy_10g_aligner_tb;
            
             // Initialize monitors
             $display("\n ---------Starting simulation---------"             )                                   ;
-            $monitor("Time: %0t | Block Lock: %0d", $time, rx_block_lock    )                                   ;
-            $monitor("Time: %0t | High Ber: %0d"  , $time, rx_high_ber      )                                   ;
-            $monitor("Time: %0t | Aligner: %0d"   , $time, o_rx_block_lock  )                                   ;
+            //$monitor("Time: %0t | Block Lock: %0d", $time, rx_block_lock    )                                   ;
+            //$monitor("Time: %0t | High Ber: %0d"  , $time, rx_high_ber      )                                   ;
+            //$monitor("Time: %0t | Aligner: %0d"   , $time, o_rx_block_lock  )                                   ;
         end 
         
         
@@ -120,7 +131,7 @@ module eth_phy_10g_aligner_tb;
             #200                                                                                                ;
             @(posedge rx_clk)                                                                                   ;
             serdes_rx <= {2'b01, {DATA_WIDTH{1'b0}}}                                                            ;
-            #1500                                                                                               ;
+            #1700                                                                                               ;
             @(posedge rx_clk)                                                                                   ;          
             ->terminate_sim                                                                                     ;
         end
@@ -149,7 +160,7 @@ module eth_phy_10g_aligner_tb;
         initial begin
             #210                                                                                                ;
             @(posedge rx_clk)                                                                                   ;
-            for(i = 0; i < 200; i = i + 1) begin                                                                
+            for(i = 0; i < 400; i = i + 1) begin                                                                
                 serdes_rx <= {FRAME_WIDTH{1'b0}}                                                                ;
                 #10                                                                                             ;
                 @(posedge rx_clk)                                                                               ;  
@@ -168,8 +179,9 @@ module eth_phy_10g_aligner_tb;
             #1500                                                                                               ;
             @(posedge rx_clk)                                                                                   ;
             serdes_rx <= {FRAME_WIDTH{1'b0}}                                                                    ;
-            #320                                                                                                ;   
-            @(posedge rx_clk)                                                                                   ;       
+            #300                                                                                                ;   
+            @(posedge rx_clk)                                                                                   ;
+            serdes_rx <= {2'b01, {DATA_WIDTH{1'b0}}}                                                            ;       
             ->terminate_sim                                                                                     ;
         end
     // Envia 64 encabezados validos y luego 1 invalido
@@ -244,7 +256,7 @@ module eth_phy_10g_aligner_tb;
         initial begin
             prob = 'd5                                                                                          ;
         end
-    `elsif PROB2
+    `elsif PROB3
         initial begin
             prob = 'd10                                                                                         ;
         end
